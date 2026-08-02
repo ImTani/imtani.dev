@@ -17,3 +17,11 @@ node_modules/.tmp/
 # there is nothing to preserve — and committing it would produce a diff of the
 # entire grid on every build.
 src/generated/
+
+# Agent tooling and local machine state. This repo is public.
+.agents/
+.claude/
+.codex/
+.cursor/
+.gemini/
+.kiro/
