@@ -1,0 +1,19 @@
+node_modules/
+dist/
+.wrangler/
+*.local
+*.log
+
+# Wrangler secrets and any local environment. This repo is public.
+.env
+.env.*
+.dev.vars
+.dev.vars.*
+
+# TypeScript project-reference build info
+node_modules/.tmp/
+
+# Baked at build time by tools/bake.ts. Regenerating it is deterministic, so
+# there is nothing to preserve — and committing it would produce a diff of the
+# entire grid on every build.
+src/generated/

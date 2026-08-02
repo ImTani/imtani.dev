@@ -1,0 +1,23 @@
+{
+  "name": "imtani-dev",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "npm run bake && tsc --build && vite build",
+    "preview": "vite preview",
+    "test": "node --test \"test/**/*.test.ts\"",
+    "bake": "node tools/bake.ts",
+    "bench": "node tools/bench.ts",
+    "typecheck": "tsc --build --force",
+    "deploy": "npm run build && wrangler deploy"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260702.1",
+    "@types/node": "^26.1.2",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.7",
+    "wrangler": "^3.99.0"
+  }
+}

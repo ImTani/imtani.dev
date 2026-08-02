@@ -1,0 +1,61 @@
+# Weekly rebake and deploy.
+#
+# This is architecture, not housekeeping. The substrate is a pure function of
+# (seed, epoch, now), so a visitor's browser must simulate every step between
+# the last baked checkpoint and the moment they arrive. Measured on the
+# reference machine at 192x120:
+#
+#   one week   10,080 steps    0.71 s
+#   one year  525,600 steps   26.1  s
+#
+# Catch-up cost therefore grows with the age of the site, not with how long any
+# individual visitor has been away. A fresh snapshot every week is what bounds
+# the worst case at roughly a second. If this workflow stops running, the site
+# gets measurably slower every week and nothing else will report it.
+
+name: rebake
+
+on:
+  schedule:
+    # 04:00 UTC every Monday.
+    - cron: '0 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rebake
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - run: npm ci
+
+      # Guard the deploy: a snapshot is only a shortcut to the current world if
+      # the engine still produces that world. Shipping a stale checkpoint would
+      # be worse than shipping none.
+      - name: Test
+        run: npm test
+
+      # `npm run build` bakes the checkpoint as its first step, so the snapshot
+      # is produced here and shipped in the bundle. It is never committed —
+      # regenerating it is deterministic, and committing it would diff the
+      # entire grid on every run.
+      - name: Build with a fresh checkpoint
+        run: npm run build
+
+      - name: Deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          command: deploy

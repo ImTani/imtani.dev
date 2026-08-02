@@ -1,0 +1,12 @@
+{
+  // Three environments with genuinely incompatible globals: the browser, Node,
+  // and the Workers runtime. A single config would have to union DOM's fetch
+  // with the Workers one and Node's Buffer with neither, so each gets its own.
+  // The engine under src/ deliberately uses only what all three share.
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.node.json" },
+    { "path": "./tsconfig.worker.json" }
+  ]
+}

@@ -1,0 +1,44 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # 24 strips TypeScript types natively, which is why the test suite
+          # needs no runner, no transpiler and no dev dependency to execute.
+          node-version: '24'
+          cache: npm
+
+      - run: npm ci
+
+      # Determinism is the property everything else rests on: the shared world
+      # exists because the maths is reproducible, not because a server
+      # remembers it. If these fail, two visitors stop seeing the same thing.
+      - name: Test
+        run: npm test
+
+      # Three environments with incompatible globals — browser, Node, Workers.
+      # tsc --build checks all three project references; tsc --noEmit against
+      # the solution file silently checks nothing.
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build

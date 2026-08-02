@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022"],
+    "types": ["node"],
+    "composite": true,
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo"
+  },
+  // src/engine only, never src as a whole. The engine must run unchanged in
+  // Node (tools/bake.ts) and in the browser, so checking it here without DOM
+  // types is what stops a stray document or requestAnimationFrame reference
+  // getting into it. Browser-only code lives outside src/engine by rule.
+  "include": ["tools", "test", "src/engine", "vite.config.ts"]
+}

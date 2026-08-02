@@ -1,0 +1,28 @@
+{
+  // Workers with static assets, not Pages. Cloudflare's own Pages docs now
+  // carry a "Migrate to Workers" link and file the migration guide alongside
+  // the ones for leaving Netlify and Vercel. One deploy serves the site and
+  // the Godot proxy together.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "imtani-dev",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-07-26",
+  "compatibility_flags": ["nodejs_compat"],
+
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    // The Worker only runs for routes it claims; everything else is served
+    // straight from the edge without invoking it.
+    "run_worker_first": ["/api/*"]
+  },
+
+  "observability": {
+    "enabled": true
+  }
+
+  // No D1, no KV, no analytics binding. The site collects nothing, and the
+  // absence of a storage binding is what makes that checkable rather than a
+  // promise.
+}
