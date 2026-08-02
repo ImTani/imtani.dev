@@ -9,6 +9,7 @@
       /* Intentionally styleless. This page is a test harness for the
          simulation engine, not a draft of the site. Nothing here is a design
          decision and none of it should be carried forward. */
+      :root { color-scheme: dark; }
       body {
         margin: 0;
         background: #141414;
@@ -16,30 +17,17 @@
         font: 13px/1.5 ui-monospace, monospace;
         padding: 16px;
       }
-      canvas {
+      .note { color: #6c6c6c; max-width: 1100px; margin: 0 0 12px; }
+      #view {
         width: 100%;
-        max-width: 960px;
-        image-rendering: pixelated;
+        max-width: 1100px;
+        aspect-ratio: 192 / 120;
         display: block;
         border: 1px solid #333;
+        cursor: crosshair;
+        touch-action: none;
       }
-      dl {
-        display: grid;
-        grid-template-columns: max-content 1fr;
-        gap: 2px 16px;
-        max-width: 960px;
-        margin: 12px 0 0;
-      }
-      dt {
-        color: #6c6c6c;
-      }
-      dd {
-        margin: 0;
-      }
-      p {
-        max-width: 960px;
-        color: #6c6c6c;
-      }
+      .controls { margin: 12px 0 0; display: flex; gap: 8px; flex-wrap: wrap; }
       button {
         font: inherit;
         background: #222;
@@ -48,16 +36,36 @@
         padding: 4px 10px;
         cursor: pointer;
       }
+      button[aria-pressed='true'] { background: #3a3a3a; color: #fff; }
+      dl {
+        display: grid;
+        grid-template-columns: max-content 1fr;
+        gap: 2px 16px;
+        max-width: 1100px;
+        margin: 14px 0 0;
+      }
+      dt { color: #6c6c6c; }
+      dd { margin: 0; }
     </style>
   </head>
   <body>
-    <p>Engine harness — unstyled on purpose. Visual language not yet decided.</p>
-    <canvas id="view"></canvas>
-    <p>
-      <button id="fast">run fast (1 step/frame)</button>
-      <button id="real">real time (1 step/min)</button>
+    <p class="note">
+      Engine harness — unstyled on purpose. Visual language not yet decided.
+      Move the cursor over the canvas. Hold still near the creature to earn its
+      trust; flick the cursor at it to startle it.
     </p>
+
+    <canvas id="view"></canvas>
+
+    <div class="controls">
+      <button id="real" aria-pressed="true">real time (substrate 1 step/min)</button>
+      <button id="fast" aria-pressed="false">fast (1 substrate step/frame)</button>
+      <button id="trust-up">+ trust</button>
+      <button id="trust-reset">reset trust</button>
+    </div>
+
     <dl id="stats"></dl>
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

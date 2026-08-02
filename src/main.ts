@@ -1,21 +1,24 @@
 /**
  * Engine harness entry point. Scaffolding, not the site.
  *
- * Loads the baked checkpoint, catches the world up to now, and draws it. The
- * point is to watch the numbers and confirm the substrate behaves the way the
- * tests claim. Everything visible here is a placeholder.
+ * Wires the three layers together so their interaction can be watched: the
+ * deterministic substrate, the ephemeral surface field on top of it, and the
+ * creature on top of that. Everything visible is a placeholder.
  */
 
 import checkpointJson from './generated/checkpoint.json';
-import type { Checkpoint } from './engine/checkpoint.ts';
-import { STEP_MS, WORLD_EPOCH_ISO, stepAt } from './engine/config.ts';
 import { armMeans } from './engine/bandit.ts';
+import type { Checkpoint } from './engine/checkpoint.ts';
+import { STEP_MS, stepAt } from './engine/config.ts';
+import { Rng, hashString } from './engine/prng.ts';
 import { RULE_ARMS } from './engine/rules.ts';
-import { SUBSTRATE_SPEC } from './engine/substrate.ts';
+import { SUBSTRATE_SPEC, setCell } from './engine/substrate.ts';
 import { World } from './engine/world.ts';
-import { DebugRenderer } from './render/debug.ts';
+import { CompositeRenderer } from './render/composite.ts';
+import { SurfaceField } from './surface/field.ts';
+import { Creature } from './surface/creature.ts';
+import type { CreatureSave } from './surface/creature.ts';
 
-/** Narrows at the point of lookup, so hoisted functions below still see it. */
 function must<T extends Element>(selector: string): T {
   const el = document.querySelector<T>(selector);
   if (!el) throw new Error(`harness markup missing: ${selector}`);
@@ -24,12 +27,17 @@ function must<T extends Element>(selector: string): T {
 
 const canvas = must<HTMLCanvasElement>('#view');
 const statsEl = must<HTMLDListElement>('#stats');
-const fastBtn = must<HTMLButtonElement>('#fast');
 const realBtn = must<HTMLButtonElement>('#real');
+const fastBtn = must<HTMLButtonElement>('#fast');
+const trustUpBtn = must<HTMLButtonElement>('#trust-up');
+const trustResetBtn = must<HTMLButtonElement>('#trust-reset');
 
-const cells = SUBSTRATE_SPEC.width * SUBSTRATE_SPEC.height;
+const spec = SUBSTRATE_SPEC;
+const cells = spec.width * spec.height;
+
+/* ---- the shared world ---------------------------------------------------- */
+
 const checkpoint = checkpointJson as Checkpoint;
-
 const loadStarted = performance.now();
 const restored = World.fromCheckpoint(checkpoint);
 const world = restored ?? new World();
@@ -37,51 +45,166 @@ const fromCheckpoint = restored !== null;
 const catchUp = world.advanceTo(stepAt(Date.now()));
 const loadMs = performance.now() - loadStarted;
 
-const renderer = new DebugRenderer(canvas, SUBSTRATE_SPEC);
+/* ---- the personal layer -------------------------------------------------- */
+
+const SAVE_KEY = 'imtani.creature.v1';
+
+function loadSave(): CreatureSave | null {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    return raw ? (JSON.parse(raw) as CreatureSave) : null;
+  } catch {
+    // Safari in private mode throws on access, and a corrupt value is just as
+    // likely. Losing the personal layer is survivable; throwing here is not.
+    return null;
+  }
+}
+
+function persist(): void {
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify(creature.serialize()));
+  } catch {
+    /* storage unavailable or full — the shared world is unaffected */
+  }
+}
+
+/* ---- layers -------------------------------------------------------------- */
+
+const renderer = new CompositeRenderer(canvas, spec);
+const surface = new SurfaceField({ spec });
+
+// Prime the field. It is session-only and starts empty, and it only gains
+// energy from a substrate transition — which in real time is once a minute. A
+// cold start would therefore show a completely dark surface for the first
+// sixty seconds, which is the worst possible first impression for the layer
+// whose entire job is making that minute feel alive. Treating every currently
+// live cell as a birth gives it something to decay from immediately.
+surface.injectTransition(new Uint32Array(world.grid.length), world.grid);
+
+const creatureOptions = {
+  rng: new Rng(hashString('creature') ^ 0x51ee7),
+  viewport: renderer.viewport,
+  grid: { width: spec.width, height: spec.height },
+} as const;
+
+const save = loadSave();
+const creature = save ? Creature.restore(save, creatureOptions) : new Creature(creatureOptions);
+
+/* ---- input --------------------------------------------------------------- */
+
+let pointerX: number | null = null;
+let pointerY: number | null = null;
+
+canvas.addEventListener('pointermove', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  pointerX = e.clientX - rect.left;
+  pointerY = e.clientY - rect.top;
+});
+canvas.addEventListener('pointerleave', () => {
+  pointerX = null;
+  pointerY = null;
+});
+window.addEventListener('resize', () => {
+  renderer.resize();
+  creature.resize(renderer.viewport);
+});
+window.addEventListener('beforeunload', persist);
 
 let fast = false;
-fastBtn.addEventListener('click', () => {
-  fast = true;
+function setSpeed(next: boolean): void {
+  fast = next;
+  fastBtn.setAttribute('aria-pressed', String(fast));
+  realBtn.setAttribute('aria-pressed', String(!fast));
+}
+realBtn.addEventListener('click', () => setSpeed(false));
+fastBtn.addEventListener('click', () => setSpeed(true));
+
+// Trust takes minutes to earn by design. These exist so the gated behaviours
+// can be inspected without sitting still for ten minutes.
+trustUpBtn.addEventListener('click', () => {
+  // Written through the save and reloaded rather than mutated in place: trust
+  // is private state behind a getter, and reaching into the instance would
+  // couple the harness to the creature's internals for a debug affordance.
+  const s = creature.serialize();
+  localStorage.setItem(SAVE_KEY, JSON.stringify({ ...s, trust: Math.min(1, s.trust + 0.25) }));
+  location.reload();
 });
-realBtn.addEventListener('click', () => {
-  fast = false;
+trustResetBtn.addEventListener('click', () => {
+  localStorage.removeItem(SAVE_KEY);
+  location.reload();
 });
+
+/* ---- loop ---------------------------------------------------------------- */
+
+// The surface field needs both generations to know what was born and what
+// died, and World swaps its buffers internally without exposing the previous
+// one. Snapshotting before each advance is 2,880 bytes and sidesteps adding a
+// hook to the engine for something only the harness needs.
+const previous = new Uint32Array(world.grid.length);
+
+let lastFrame = performance.now();
+let stepsApplied = 0;
+let writesApplied = 0;
+
+function frame(now: number): void {
+  const dtMs = Math.max(0, now - lastFrame);
+  lastFrame = now;
+
+  previous.set(world.grid);
+  const before = world.step;
+  world.advanceTo(fast ? world.step + 1 : stepAt(Date.now()));
+  if (world.step !== before) {
+    surface.injectTransition(previous, world.grid);
+    stepsApplied += world.step - before;
+  }
+
+  surface.advance(dtMs);
+
+  creature.update({ pointerX, pointerY, dtMs });
+
+  // The creature writes into this visitor's copy of the world. The global
+  // substrate is untouched — divergence from the shared world is exactly what
+  // the personal layer is.
+  for (const w of creature.drainWrites()) {
+    setCell(world.grid, spec, w.x, w.y, w.alive);
+    surface.injectPoint(w.x, w.y, w.alive ? 0.9 : 1.4);
+    writesApplied++;
+  }
+
+  renderer.draw(world.grid, surface.energy, surface.peak, creature);
+  paintStats();
+  requestAnimationFrame(frame);
+}
+
+/* ---- readout ------------------------------------------------------------- */
 
 function row(term: string, value: string): string {
   return `<dt>${term}</dt><dd>${value}</dd>`;
 }
 
-function paint(): void {
-  renderer.draw(world.grid);
+let lastStatsAt = 0;
+function paintStats(): void {
+  // Rebuilding this string every frame dominates the profile and tells us
+  // nothing; four times a second is plenty for reading numbers.
+  if (performance.now() - lastStatsAt < 250) return;
+  lastStatsAt = performance.now();
 
   const means = armMeans(world.bandit);
-  const ranked = RULE_ARMS.map((r, i) => ({ name: r.name, mean: means[i]!, n: world.bandit.counts[i]! }))
-    .sort((a, b) => b.mean - a.mean)
-    .map((a) => `${a.name}=${Math.round(a.mean)}${a.n === 0 ? '?' : ''}`)
-    .join('  ');
+  const arms = RULE_ARMS.map((r, i) => `${r.name}=${Math.round(means[i]!)}`).join('  ');
 
   statsEl.innerHTML = [
     row('source', fromCheckpoint ? `checkpoint @ step ${checkpoint.step}` : 'epoch (checkpoint rejected)'),
     row('load', `${loadMs.toFixed(1)} ms, caught up ${catchUp.stepped} steps${catchUp.truncated ? ' (TRUNCATED)' : ''}`),
-    row('epoch', WORLD_EPOCH_ISO),
-    row('step', `${world.step}  (${((world.step * STEP_MS) / 86_400_000).toFixed(2)} days of world time)`),
+    row('step', `${world.step}  (${((world.step * STEP_MS) / 86_400_000).toFixed(2)} days of world time, +${stepsApplied} this session)`),
     row('rule', `${world.rule.name}  arm ${world.bandit.arm}, ${world.bandit.decisions} decisions`),
     row('population', `${world.population} / ${cells}  (${((world.population / cells) * 100).toFixed(2)}%)`),
     row('activity', world.metrics ? `${(world.metrics.activity / 100).toFixed(2)}%` : 'not yet measured'),
-    row('reward', world.metrics ? String(world.metrics.reward) : 'not yet measured'),
-    row('arms', ranked),
+    row('surface peak', surface.peak.toFixed(3)),
+    row('creature', `${creature.state}  trust ${creature.trust.toFixed(3)}  ${creature.embedded ? 'embedded' : 'vector'}  (${creature.x.toFixed(0)}, ${creature.y.toFixed(0)})`),
+    row('creature writes', String(writesApplied)),
+    row('arms', arms),
   ].join('');
 }
 
-function frame(): void {
-  if (fast) {
-    world.advanceTo(world.step + 1);
-  } else {
-    world.advanceTo(stepAt(Date.now()));
-  }
-  paint();
-  requestAnimationFrame(frame);
-}
-
-paint();
+setInterval(persist, 5_000);
 requestAnimationFrame(frame);

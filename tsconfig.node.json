@@ -6,9 +6,15 @@
     "composite": true,
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo"
   },
-  // src/engine only, never src as a whole. The engine must run unchanged in
-  // Node (tools/bake.ts) and in the browser, so checking it here without DOM
-  // types is what stops a stray document or requestAnimationFrame reference
-  // getting into it. Browser-only code lives outside src/engine by rule.
-  "include": ["tools", "test", "src/engine", "vite.config.ts"]
+  // Logic layers only, never src as a whole. Everything listed here must run
+  // unchanged in Node and in the browser, so checking it without DOM types is
+  // what stops a stray `document` or `requestAnimationFrame` getting into it.
+  //
+  //   src/engine   deterministic, shared world, also runs in tools/bake.ts
+  //   src/surface  non-deterministic and session-only, but still pure logic
+  //
+  // src/render and src/main.ts are browser-only and are deliberately absent —
+  // they are covered by tsconfig.app.json, which has the DOM lib. That split
+  // is the layering, enforced by the compiler rather than by convention.
+  "include": ["tools", "test", "src/engine", "src/surface", "vite.config.ts"]
 }
