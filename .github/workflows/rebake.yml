@@ -5,20 +5,28 @@
 # the last baked checkpoint and the moment they arrive. Measured on the
 # reference machine at 192x120:
 #
-#   one week   10,080 steps    0.71 s
-#   one year  525,600 steps   26.1  s
+#   57.8 microseconds per step, measured at 192x120
 #
 # Catch-up cost therefore grows with the age of the site, not with how long any
-# individual visitor has been away. A fresh snapshot every week is what bounds
-# the worst case at roughly a second. If this workflow stops running, the site
-# gets measurably slower every week and nothing else will report it.
+# individual visitor has been away, and it scales with the tick rate. At one
+# second per step:
+#
+#   six hours    21,600 steps    1.2 s
+#   one day      86,400 steps    5.0 s
+#   one week    604,800 steps   35.0 s
+#
+# Six-hourly is what keeps that first row true. The client advances in bounded
+# chunks across frames rather than blocking, so 1.2 s is a visible fast-forward
+# and not a stall — but if this workflow stops running, the fast-forward grows
+# every six hours and nothing else will report it.
 
 name: rebake
 
 on:
   schedule:
-    # 04:00 UTC every Monday.
-    - cron: '0 4 * * 1'
+    # Every six hours. See the note above: this interval is the bound on
+    # worst-case catch-up, not a housekeeping cadence.
+    - cron: '0 */6 * * *'
   workflow_dispatch:
 
 permissions:
@@ -40,6 +48,19 @@ jobs:
           cache: npm
 
       - run: npm ci
+
+      # The bake resumes from the previous snapshot, so this cache is what
+      # stops CI recomputing the world from the epoch on every run — a cost
+      # that grows with the age of the site, not with the rebake interval.
+      # A miss is correct but slow; it degrades to a full replay rather than
+      # to a wrong world. The permanent fix once the site is deployed is to
+      # resume from the live checkpoint instead of from CI state.
+      - name: Restore world snapshot
+        uses: actions/cache@v4
+        with:
+          path: src/generated
+          key: world-${{ github.run_id }}
+          restore-keys: world-
 
       # Guard the deploy: a snapshot is only a shortcut to the current world if
       # the engine still produces that world. Shipping a stale checkpoint would

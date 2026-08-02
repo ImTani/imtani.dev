@@ -17,14 +17,20 @@ export const WORLD_EPOCH_MS = Date.parse(WORLD_EPOCH_ISO);
 /**
  * Milliseconds per substrate step.
  *
- * One minute. This is the slow clock: it is what persists, what the bandit
- * runs on, and what "seven days of progress" is computed against. A week of
- * absence is 10,080 steps, which measures at well under a second.
+ * One second. The first version was one minute, chosen so a week of absence
+ * caught up in half a second — and that was optimising the wrong thing. It
+ * bought a fast page load at the cost of a world that visibly changed once a
+ * minute, which reads as a still image rather than a simulation.
  *
- * The fast surface layer that visitors actually watch runs at animation rate
- * and is never fast-forwarded — it exists only for the current session.
+ * Measured at 192x120: 57.8 microseconds per step. At one second per step and
+ * a six-hourly rebake, the worst-case catch-up is 21,600 steps, about 1.2
+ * seconds of compute — and it no longer blocks anything, because the client
+ * advances in bounded chunks across frames instead of in one call.
+ *
+ * The surface layer still runs at animation rate on top of this; a one-second
+ * substrate is structure, not motion.
  */
-export const STEP_MS = 60_000;
+export const STEP_MS = 1_000;
 
 /** Fraction of cells seeded live at epoch, in parts per 10,000. */
 export const INITIAL_DENSITY = 3_200;

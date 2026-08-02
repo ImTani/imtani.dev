@@ -67,18 +67,30 @@ roughly ten hours of world time, immigration fires at 4%, it rebuilds.
 
 ## Measured
 
-Substrate is 192×120 — 23,040 cells in 2,880 bytes, 0.0496 ms/step.
+Substrate is 192×120 — 23,040 cells in 2,880 bytes, **57.8 µs/step**.
 
-| | steps | time |
+The tick is **one second**. The first version was one minute, which made
+catch-up almost free and the world almost static — optimising the wrong thing.
+Worst-case catch-up is set by the rebake interval, not by the age of the site:
+
+| since last bake | steps | catch-up |
 |---|---|---|
-| One week away, slow clock | 10,080 | **0.50 s** |
-| One year from epoch | 525,600 | 26.1 s |
-| One week at 30 steps/sec | 18,144,000 | 15 min |
+| **six hours** | 21,600 | **1.2 s** |
+| one day | 86,400 | 5.0 s |
+| one week | 604,800 | 35.0 s |
 
-The last row is why there are two clocks. The middle row is why checkpoints are
-baked at build time rather than computed on load, and why `rebake.yml` runs
-weekly — if that cron stops, catch-up drifts from the top row toward the middle
-one and nothing else reports it.
+`rebake.yml` runs six-hourly to hold the first row. That 1.2 s is not a stall:
+the client advances in bounded chunks across frames, so the world is on screen
+immediately and fast-forwards to the present while you watch — which shows the
+history is real rather than claiming it.
+
+`tools/bake.ts` resumes from the previous snapshot rather than replaying from
+the epoch, or the job's own cost would grow with the age of the site: 51 s after
+one week, roughly half an hour after a year, four times a day. Resuming is
+caching, not a change to the world — a checkpoint at step N produces exactly
+what replaying to step N produces, which is what the determinism tests hold, so
+the world stays verifiable from the seed by anyone willing to spend the half
+hour.
 
 ## Not built yet
 

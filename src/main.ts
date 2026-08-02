@@ -42,8 +42,27 @@ const loadStarted = performance.now();
 const restored = World.fromCheckpoint(checkpoint);
 const world = restored ?? new World();
 const fromCheckpoint = restored !== null;
-const catchUp = world.advanceTo(stepAt(Date.now()));
 const loadMs = performance.now() - loadStarted;
+
+/**
+ * Steps to simulate per frame while catching up to now.
+ *
+ * At 57.8 microseconds per step this is roughly 8 ms, half a frame, which
+ * leaves room for the surface layer and the draw. Catch-up is deliberately
+ * *not* done in one blocking call before the first paint: at a one-second tick
+ * and a six-hourly rebake the worst case is 21,600 steps, and a page that
+ * freezes for a second before showing anything is a worse outcome than one
+ * that shows the world immediately and races it forward.
+ *
+ * It is also the more honest presentation. The visitor watches the world
+ * fast-forward from the last snapshot to the present, which demonstrates that
+ * the history is real rather than asserting it in a paragraph.
+ */
+const CATCHUP_STEPS_PER_FRAME = 140;
+
+const catchUpTarget = stepAt(Date.now());
+const catchUpFrom = world.step;
+let catchingUp = world.step < catchUpTarget;
 
 /* ---- the personal layer -------------------------------------------------- */
 
@@ -152,7 +171,16 @@ function frame(now: number): void {
 
   previous.set(world.grid);
   const before = world.step;
-  world.advanceTo(fast ? world.step + 1 : stepAt(Date.now()));
+
+  if (catchingUp) {
+    // Bounded chunk per frame. `advanceTo` reports truncation, so the loop
+    // knows whether it is still behind without recomputing the target.
+    const result = world.advanceTo(stepAt(Date.now()), CATCHUP_STEPS_PER_FRAME);
+    catchingUp = result.truncated;
+  } else {
+    world.advanceTo(fast ? world.step + 1 : stepAt(Date.now()));
+  }
+
   if (world.step !== before) {
     surface.injectTransition(previous, world.grid);
     stepsApplied += world.step - before;
@@ -194,7 +222,13 @@ function paintStats(): void {
 
   statsEl.innerHTML = [
     row('source', fromCheckpoint ? `checkpoint @ step ${checkpoint.step}` : 'epoch (checkpoint rejected)'),
-    row('load', `${loadMs.toFixed(1)} ms, caught up ${catchUp.stepped} steps${catchUp.truncated ? ' (TRUNCATED)' : ''}`),
+    row('load', `${loadMs.toFixed(1)} ms to restore checkpoint`),
+    row(
+      'catch-up',
+      catchingUp
+        ? `running — ${world.step - catchUpFrom} of ${catchUpTarget - catchUpFrom} steps`
+        : `done (${catchUpTarget - catchUpFrom} steps from the snapshot)`,
+    ),
     row('step', `${world.step}  (${((world.step * STEP_MS) / 86_400_000).toFixed(2)} days of world time, +${stepsApplied} this session)`),
     row('rule', `${world.rule.name}  arm ${world.bandit.arm}, ${world.bandit.decisions} decisions`),
     row('population', `${world.population} / ${cells}  (${((world.population / cells) * 100).toFixed(2)}%)`),

@@ -16,8 +16,16 @@ import { Rng } from './prng.ts';
 import { RULE_ARMS } from './rules.ts';
 import type { Rule } from './rules.ts';
 
-/** Substrate steps between decisions. At one step per minute, one hour. */
-export const DECISION_INTERVAL = 60;
+/**
+ * Substrate steps between decisions.
+ *
+ * Counted in steps, so it has to move whenever the tick does or the bandit's
+ * real-time cadence moves with it. At one second per step, 1,800 steps is a
+ * decision every half hour — frequent enough that a returning visitor sees the
+ * world under different rules, rare enough that a single visit is not watching
+ * the search thrash.
+ */
+export const DECISION_INTERVAL = 1_800;
 
 /** Exploration rate in parts per thousand. Constant — no decay, deliberately. */
 export const EPSILON_PER_MILLE = 100;

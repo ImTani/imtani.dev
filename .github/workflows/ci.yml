@@ -28,6 +28,19 @@ jobs:
 
       - run: npm ci
 
+      # The bake resumes from the previous snapshot, so this cache is what
+      # stops CI recomputing the world from the epoch on every run — a cost
+      # that grows with the age of the site, not with the rebake interval.
+      # A miss is correct but slow; it degrades to a full replay rather than
+      # to a wrong world. The permanent fix once the site is deployed is to
+      # resume from the live checkpoint instead of from CI state.
+      - name: Restore world snapshot
+        uses: actions/cache@v4
+        with:
+          path: src/generated
+          key: world-${{ github.run_id }}
+          restore-keys: world-
+
       # Determinism is the property everything else rests on: the shared world
       # exists because the maths is reproducible, not because a server
       # remembers it. If these fail, two visitors stop seeing the same thing.

@@ -11,11 +11,12 @@
  * public, so anyone can recompute the same state from scratch and check it.
  */
 
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { WORLD_EPOCH_ISO, stepAt } from '../src/engine/config.ts';
+import type { Checkpoint } from '../src/engine/checkpoint.ts';
 import { World } from '../src/engine/world.ts';
 import { RULE_ARMS } from '../src/engine/rules.ts';
 import { SUBSTRATE_SPEC } from '../src/engine/substrate.ts';
@@ -26,7 +27,45 @@ const outPath = resolve(here, '../src/generated/checkpoint.json');
 const now = Date.now();
 const target = stepAt(now);
 
-const world = new World();
+/**
+ * Resume from the previous snapshot when there is a usable one.
+ *
+ * Baking from the epoch every time makes this job's cost grow with the age of
+ * the site rather than with the interval since the last bake — at a one-second
+ * tick that is 51 seconds after a week and roughly half an hour after a year,
+ * for a job that runs four times a day. Resuming bounds it at the rebake
+ * interval instead: six hours of world time is 21,600 steps, about 1.2 seconds.
+ *
+ * This is caching, not a change to the world. Resuming from a checkpoint at
+ * step N produces exactly what replaying from the epoch to step N produces —
+ * that property is what `test/determinism.test.ts` exists to hold — so the
+ * world stays independently verifiable from the seed by anyone willing to
+ * spend the half hour. `fromCheckpoint` returns null for a snapshot describing
+ * a different world (changed seed, tick, geometry or rule set), so a stale one
+ * degrades to a slow correct bake rather than a fast wrong one.
+ */
+function resume(): World | null {
+  if (!existsSync(outPath)) return null;
+  try {
+    const previous = JSON.parse(readFileSync(outPath, 'utf8')) as Checkpoint;
+    const world = World.fromCheckpoint(previous);
+    if (!world) {
+      console.log('previous checkpoint describes a different world — baking from the epoch');
+      return null;
+    }
+    if (world.step > target) {
+      console.log('previous checkpoint is ahead of now — baking from the epoch');
+      return null;
+    }
+    return world;
+  } catch (cause) {
+    console.log(`previous checkpoint unreadable (${String(cause)}) — baking from the epoch`);
+    return null;
+  }
+}
+
+const resumed = resume();
+const world = resumed ?? new World();
 const started = Date.now();
 const result = world.advanceTo(target, Number.MAX_SAFE_INTEGER);
 const elapsed = Date.now() - started;
@@ -39,7 +78,7 @@ const cells = SUBSTRATE_SPEC.width * SUBSTRATE_SPEC.height;
 const bytes = Buffer.byteLength(JSON.stringify(checkpoint), 'utf8');
 
 console.log(`baked ${outPath}`);
-console.log(`  epoch      ${WORLD_EPOCH_ISO}`);
+console.log(`  from       ${resumed ? `checkpoint @ step ${target - result.stepped}` : `epoch ${WORLD_EPOCH_ISO}`}`);
 console.log(`  now        ${new Date(now).toISOString()}`);
 console.log(`  step       ${world.step} (${result.stepped} simulated in ${elapsed} ms)`);
 console.log(`  rule       ${world.rule.name}  arm ${world.bandit.arm}/${RULE_ARMS.length}`);
