@@ -16,6 +16,7 @@ import { SUBSTRATE_SPEC, setCell } from './engine/substrate.ts';
 import { World } from './engine/world.ts';
 import { CompositeRenderer } from './render/composite.ts';
 import { SurfaceField } from './surface/field.ts';
+import { CellTween } from './surface/tween.ts';
 import { Creature } from './surface/creature.ts';
 import type { CreatureSave } from './surface/creature.ts';
 
@@ -91,6 +92,8 @@ function persist(): void {
 
 const renderer = new CompositeRenderer(canvas, spec);
 const surface = new SurfaceField({ spec });
+const tween = new CellTween({ spec });
+tween.snap(world.grid);
 
 // Prime the field. It is session-only and starts empty, and it only gains
 // energy from a substrate transition — which in real time is once a minute. A
@@ -188,6 +191,13 @@ function frame(now: number): void {
 
   surface.advance(dtMs);
 
+  // While fast-forwarding, the target a cell is chasing changes many times per
+  // frame, so interpolating between generations produces a uniform smear
+  // instead of motion. Snap through the catch-up and only tween once the world
+  // is running at its own pace.
+  if (catchingUp || fast) tween.snap(world.grid);
+  else tween.advance(dtMs, world.grid);
+
   creature.update({ pointerX, pointerY, dtMs });
 
   // The creature writes into this visitor's copy of the world. The global
@@ -199,7 +209,7 @@ function frame(now: number): void {
     writesApplied++;
   }
 
-  renderer.draw(world.grid, surface.energy, surface.peak, creature);
+  renderer.draw(tween.value, surface.energy, surface.peak, creature);
   paintStats();
   requestAnimationFrame(frame);
 }

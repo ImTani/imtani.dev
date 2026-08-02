@@ -16,6 +16,7 @@
  */
 
 import type { GridSpec } from '../engine/substrate.ts';
+import { ease } from '../surface/tween.ts';
 
 export interface CreatureView {
   readonly x: number;
@@ -73,45 +74,45 @@ export class CompositeRenderer {
     return { width: this.cssWidth, height: this.cssHeight };
   }
 
-  draw(grid: Uint32Array, energy: Float32Array | null, peak: number, creature: CreatureView | null): void {
-    const { width, height, words } = this.spec;
+  draw(
+    levels: Float32Array,
+    energy: Float32Array | null,
+    peak: number,
+    creature: CreatureView | null,
+  ): void {
+    const { width, height } = this.spec;
     // Normalise against the running peak rather than a constant: the field's
     // absolute magnitude swings by orders of magnitude between a fresh
     // injection and the end of a decay, and a fixed scale makes it either
     // clip constantly or vanish.
     const scale = energy && peak > 1e-6 ? 1 / peak : 0;
 
-    for (let y = 0; y < height; y++) {
-      const row = y * words;
-      const out = y * width;
-      for (let w = 0; w < words; w++) {
-        const word = grid[row + w]!;
-        const base = out + (w << 5);
-        for (let bit = 0; bit < 32; bit++) {
-          const i = base + bit;
-          const alive = (word >>> bit) & 1;
+    const cells = width * height;
+    for (let i = 0; i < cells; i++) {
+      // Interpolated aliveness, not the raw bit. Smoothstepped here rather
+      // than in the tween so the stored value stays linear progress and a cell
+      // that reverses direction mid-fade does not jump.
+      const a = ease(levels[i]!);
 
-          // Square root rather than linear. The field's values are dominated
-          // by a handful of freshly-injected cells, so against a linear ramp
-          // normalised to the peak everything else reads as black and the
-          // layer looks broken when it is in fact working.
-          const e = energy ? Math.sqrt(Math.min(1, energy[i]! * scale)) : 0;
+      // Square root rather than linear. The field's values are dominated by a
+      // handful of freshly-injected cells, so against a linear ramp normalised
+      // to the peak everything else reads as black and the layer looks broken
+      // when it is in fact working.
+      const e = energy ? Math.sqrt(Math.min(1, energy[i]! * scale)) : 0;
 
-          // Substrate is neutral, surface is warm. Two layers on one canvas
-          // are only judgeable if you can tell which is which, and hue is the
-          // cheapest separation available. Debug colouring — not a palette.
-          const base0 = alive ? 0.88 : 0.04;
-          const r = Math.min(1, base0 + e * 0.72);
-          const g = Math.min(1, base0 + e * 0.42);
-          const b = Math.min(1, base0 + e * 0.2);
+      // Substrate is neutral, surface is warm. Two layers on one canvas are
+      // only judgeable if you can tell which is which, and hue is the cheapest
+      // separation available. Debug colouring — not a palette.
+      const base0 = 0.04 + a * 0.84;
+      const r = Math.min(1, base0 + e * 0.72);
+      const g = Math.min(1, base0 + e * 0.42);
+      const b = Math.min(1, base0 + e * 0.2);
 
-          this.pixels[i] =
-            (255 << 24) |
-            (Math.round(b * 255) << 16) |
-            (Math.round(g * 255) << 8) |
-            Math.round(r * 255);
-        }
-      }
+      this.pixels[i] =
+        (255 << 24) |
+        (Math.round(b * 255) << 16) |
+        (Math.round(g * 255) << 8) |
+        Math.round(r * 255);
     }
 
     this.offCtx.putImageData(this.image, 0, 0);
