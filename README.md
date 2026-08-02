@@ -7,6 +7,11 @@ thrown away.
 
 ## Commands
 
+The checkpoint under `src/generated/` is produced by the build and is not
+committed — regenerating it is deterministic, so there is nothing to preserve,
+and committing it would diff the entire grid on every build. `dev` and
+`typecheck` bake it themselves, so a fresh clone needs no extra step.
+
 ```
 npm test        # 20 tests, no framework — Node 24 strips types natively
 npm run bench   # substrate throughput and what it implies for catch-up

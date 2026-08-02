@@ -4,12 +4,14 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "predev": "npm run bake",
     "dev": "vite",
     "build": "npm run bake && tsc --build && vite build",
     "preview": "vite preview",
     "test": "node --test \"test/**/*.test.ts\"",
     "bake": "node tools/bake.ts",
     "bench": "node tools/bench.ts",
+    "pretypecheck": "npm run bake",
     "typecheck": "tsc --build --force",
     "deploy": "npm run build && wrangler deploy"
   },
