@@ -12,7 +12,11 @@
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
-    "not_found_handling": "single-page-application",
+    // Not single-page-application: that returns index.html with a 200 for
+    // every unmatched path, so a typo would serve the holding page and claim
+    // it was the page asked for. This is a static multi-page site, so a miss
+    // should be a miss. Becomes "404-page" once there is one worth showing.
+    "not_found_handling": "none",
     // The Worker only runs for routes it claims; everything else is served
     // straight from the edge without invoking it.
     "run_worker_first": ["/api/*"]

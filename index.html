@@ -3,69 +3,107 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="robots" content="noindex" />
-    <title>substrate — engine harness</title>
+    <title>Tanishk Narula</title>
+    <meta
+      name="description"
+      content="Tanishk Narula — machine learning and systems engineering. Site under construction."
+    />
+    <link rel="canonical" href="https://imtani.dev/" />
+    <meta name="theme-color" content="#111214" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#fbfaf8" media="(prefers-color-scheme: light)" />
     <style>
-      /* Intentionally styleless. This page is a test harness for the
-         simulation engine, not a draft of the site. Nothing here is a design
-         decision and none of it should be carried forward. */
-      :root { color-scheme: dark; }
+      /* Deliberately plain. The visual language for this site is not decided,
+         and a holding page is the wrong place to decide it — anything with a
+         point of view here would be a claim the real site then has to honour.
+         System type, one column, no motion. Replace wholesale, do not extend. */
+      :root {
+        color-scheme: light dark;
+        --paper: #fbfaf8;
+        --ink: #16181c;
+        --ink-2: #5c626b;
+        --rule: #e2e0dc;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --paper: #111214;
+          --ink: #e8e6e3;
+          --ink-2: #8d9299;
+          --rule: #26282c;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
       body {
         margin: 0;
-        background: #141414;
-        color: #b8b8b8;
-        font: 13px/1.5 ui-monospace, monospace;
-        padding: 16px;
-      }
-      .note { color: #6c6c6c; max-width: 1100px; margin: 0 0 12px; }
-      #view {
-        width: 100%;
-        max-width: 1100px;
-        aspect-ratio: 192 / 120;
-        display: block;
-        border: 1px solid #333;
-        cursor: crosshair;
-        touch-action: none;
-      }
-      .controls { margin: 12px 0 0; display: flex; gap: 8px; flex-wrap: wrap; }
-      button {
-        font: inherit;
-        background: #222;
-        color: inherit;
-        border: 1px solid #3a3a3a;
-        padding: 4px 10px;
-        cursor: pointer;
-      }
-      button[aria-pressed='true'] { background: #3a3a3a; color: #fff; }
-      dl {
+        min-height: 100svh;
         display: grid;
-        grid-template-columns: max-content 1fr;
-        gap: 2px 16px;
-        max-width: 1100px;
-        margin: 14px 0 0;
+        place-items: center;
+        padding: 2rem 1.5rem;
+        background: var(--paper);
+        color: var(--ink);
+        font: 400 clamp(15px, 1.1vw + 12px, 17px) / 1.6 ui-sans-serif, system-ui,
+          -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        -webkit-font-smoothing: antialiased;
       }
-      dt { color: #6c6c6c; }
-      dd { margin: 0; }
+      main {
+        max-width: 34rem;
+        width: 100%;
+      }
+      h1 {
+        font-size: clamp(1.6rem, 3vw + 1rem, 2.4rem);
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        margin: 0 0 0.75rem;
+      }
+      p {
+        margin: 0 0 1rem;
+        color: var(--ink-2);
+        text-wrap: pretty;
+      }
+      .lede {
+        color: var(--ink);
+      }
+      ul {
+        list-style: none;
+        margin: 1.75rem 0 0;
+        padding: 1.25rem 0 0;
+        border-top: 1px solid var(--rule);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 1.5rem;
+        font-size: 0.95em;
+      }
+      a {
+        color: var(--ink);
+        text-decoration-color: var(--ink-2);
+        text-underline-offset: 0.2em;
+      }
+      a:hover {
+        text-decoration-color: var(--ink);
+      }
     </style>
   </head>
   <body>
-    <p class="note">
-      Engine harness — unstyled on purpose. Visual language not yet decided.
-      Move the cursor over the canvas. Hold still near the creature to earn its
-      trust; flick the cursor at it to startle it.
-    </p>
-
-    <canvas id="view"></canvas>
-
-    <div class="controls">
-      <button id="real" aria-pressed="true">real time (substrate 1 step/sec)</button>
-      <button id="fast" aria-pressed="false">fast (1 step/frame, ~60x)</button>
-      <button id="trust-up">+ trust</button>
-      <button id="trust-reset">reset trust</button>
-    </div>
-
-    <dl id="stats"></dl>
-
-    <script type="module" src="/src/main.ts"></script>
+    <main>
+      <h1>Tanishk Narula</h1>
+      <p class="lede">Still building this.</p>
+      <p>
+        Machine learning and systems engineering. Currently at AiHello, and
+        co-founding <a href="https://smoothsend.xyz">SmoothSend</a>.
+      </p>
+      <p>
+        The site itself is under construction — the engine behind it is further
+        along than the page in front of it, which is the wrong way round and is
+        being fixed.
+      </p>
+      <ul>
+        <li><a href="mailto:hey@imtani.dev">hey@imtani.dev</a></li>
+        <li><a href="https://github.com/ImTani">github.com/ImTani</a></li>
+        <li>
+          <a href="https://github.com/ImTani/imtani.dev">source for this site</a>
+        </li>
+      </ul>
+    </main>
   </body>
 </html>
