@@ -18,6 +18,17 @@
     "run_worker_first": ["/api/*"]
   },
 
+  // Deploy to the workers.dev subdomain for now. The site is still an unstyled
+  // engine harness, and imtani.dev should not serve a debug view. When there is
+  // something worth putting there, this becomes:
+  //
+  //   "workers_dev": false,
+  //   "routes": [{ "pattern": "imtani.dev", "custom_domain": true }]
+  //
+  // which is why the token wants Workers Routes:Edit and Zone:Read on that zone
+  // already — so it does not have to be recreated at that point.
+  "workers_dev": true,
+
   "observability": {
     "enabled": true
   }

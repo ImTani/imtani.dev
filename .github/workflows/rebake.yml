@@ -75,8 +75,15 @@ jobs:
       - name: Build with a fresh checkpoint
         run: npm run build
 
+      # CLOUDFLARE_ACCOUNT_ID is supplied explicitly so the token does not also
+      # need Account Settings:Read and Memberships:Read — without it wrangler
+      # resolves the account by listing, which is what drags those in. The
+      # token therefore needs exactly Workers Scripts:Edit, plus Workers
+      # Routes:Edit and Zone:Read scoped to imtani.dev for the custom domain.
       - name: Deploy
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           command: deploy
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
