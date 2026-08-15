@@ -28,6 +28,29 @@
      start of the next line on the return sweep. */
   --measure: 40rem;
   --wide: 54rem;
+
+  /* Rail width and the air between it and the reading column. Named because
+     the wide breakpoint below is derived from them, not guessed. */
+  --rail: 12.5rem;
+  --rail-gap: 2.5rem;
+
+  /* Type scale. Four steps on roughly a 1.3 ratio so each level reads as a
+     level rather than as a slightly different size. The sub-head is the one
+     that had to be stated deliberately: it was set below the body size, which
+     is why it read as a caption. It now sits just above it and does the rest
+     of its work through weight, case and the space above it. */
+  --t-title: clamp(2.4rem, 4.6vw, 3.25rem);
+  --t-day: clamp(1.9rem, 2.4vw + 1.1rem, 2.375rem);
+  --t-head: clamp(1.375rem, 0.8vw + 1.2rem, 1.5rem);
+  --t-sub: 0.95rem;
+
+  /* Vertical rhythm: 80 / 48 / 30 px. Three intervals with real distance
+     between them, so a day reads as a page turn, a section as a break and a
+     sub-head as a breath. One interval repeated is what makes a long page
+     feel like a list. */
+  --gap-day: 5rem;
+  --gap-head: 3rem;
+  --gap-sub: 1.9rem;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -107,38 +130,87 @@ a:focus-visible {
 
 /* --------------------------------------------------------------- layout --- */
 
+/* The reading column is centred on the viewport and the contents rail lives
+ * outside it, in the right-hand gutter.
+ *
+ * It used to be a two-track grid — measure plus rail — inside a 72rem page.
+ * That page was centred, but the prose inside it was not: it occupied the left
+ * 54rem of 72, so the text sat about 16rem left of where the eye expects the
+ * middle of a page to be, and the rail was not so much beside the article as
+ * sharing it. Taking the rail out of the reading column's track is the whole
+ * fix; centring follows for free.
+ *
+ * `full` spans the viewport's usable width, `main` is the reading column. The
+ * gutters are equal 1fr tracks, which is what keeps `main` centred no matter
+ * what the rail does.
+ */
 .page {
-  max-width: 72rem;
-  margin-inline: auto;
+  display: grid;
+  grid-template-columns:
+    [full-start] minmax(0, 1fr)
+    [main-start] min(var(--wide), 100%) [main-end]
+    minmax(0, 1fr) [full-end];
   padding-inline: clamp(1.25rem, 4vw, 3rem);
   padding-bottom: 6rem;
 }
 
+.page > *,
+.layout > * {
+  grid-column: main;
+  min-width: 0;
+}
+
+/* Below the wide breakpoint the rail is a horizontal spine above the article,
+ * so `.layout` is an ordinary block and its children stack. */
 .layout > .prose {
   min-width: 0;
 }
 
-@media (min-width: 78rem) {
+/* Deriving the breakpoint rather than picking one: the rail only appears once
+ * a gutter can actually hold it. A centred column with something beside it
+ * needs that width on BOTH sides — the empty left gutter is the price of the
+ * text being centred, and it is the price the previous layout refused to pay.
+ *
+ *   54rem column + 2 x (2.5rem gap + 12.5rem rail) + 2 x 3rem page padding
+ *   = 90rem = 1440px
+ *
+ * Under that, the spine. It is one number: lower `--rail` to bring the rail
+ * back at narrower widths, at the cost of the longest entries wrapping. */
+@media (min-width: 90rem) {
+  /* `display: contents` promotes the rail and the article into the page grid
+     so both can address its named columns. The wrapper is a plain div, so it
+     carries no role for this to dissolve. */
   .layout {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 14rem;
-    column-gap: 4rem;
-    align-items: start;
+    display: contents;
   }
 
-  .layout > .toc {
-    grid-column: 2;
+  /* Explicit rows. Auto-placement would drop the rail into its own row above
+     the article — it never backtracks into a row it has already passed — and a
+     sticky element can only travel inside its own grid area, so the rail would
+     stop scrolling after a few hundred pixels. */
+  .masthead {
     grid-row: 1;
+  }
+
+  .toc,
+  .prose {
+    grid-row: 2;
+  }
+
+  .colophon {
+    grid-row: 3;
+  }
+
+  .toc {
+    grid-column: main-end / full-end;
+    justify-self: start;
+    width: var(--rail);
+    margin-left: var(--rail-gap);
     position: sticky;
-    top: 2.5rem;
-    max-height: calc(100vh - 5rem);
+    top: 3rem;
+    max-height: calc(100vh - 6rem);
     overflow-y: auto;
     overscroll-behavior: contain;
-  }
-
-  .layout > .prose {
-    grid-column: 1;
-    grid-row: 1;
   }
 }
 
@@ -155,11 +227,11 @@ a:focus-visible {
   color: var(--muted);
   text-transform: uppercase;
   display: block;
-  margin-bottom: 3rem;
+  margin-bottom: 2.25rem;
 }
 
 .title {
-  font-size: clamp(2.3rem, 5.5vw, 3.5rem);
+  font-size: var(--t-title);
   line-height: 1.04;
   letter-spacing: -0.015em;
   font-weight: 600;
@@ -272,7 +344,7 @@ a:focus-visible {
 /* Narrow screens get the spine only — nine days and an epilogue, laid out as a
    row. The full forty-two-entry outline is a wall on a phone, and the sections
    are two swipes apart once you are on the right day anyway. */
-@media (max-width: 77.99rem) {
+@media (max-width: 89.99rem) {
   .toc {
     max-width: var(--wide);
     margin: 0 0 3.5rem;
@@ -334,6 +406,9 @@ a:focus-visible {
   line-height: 1.6;
 }
 
+/* One rule in the whole article, and it sits immediately before the Epilogue
+ * heading, which already draws a full-width rule of its own. Two dividers for
+ * one division, with a stack of vertical space between them. */
 .prose > hr {
   border: 0;
   border-top: 1px solid var(--rule);
@@ -341,12 +416,16 @@ a:focus-visible {
   margin: 3.5rem 0 0;
 }
 
+.prose > hr:has(+ h1) {
+  display: none;
+}
+
 /* Day headings are the spine. Full-width rule, a mono index in the accent, the
    date large underneath — the same shape every time so that scrolling past one
    reads as a page turn. */
 .prose > h1 {
-  margin: 5.5rem 0 2.25rem;
-  padding-top: 2.25rem;
+  margin: var(--gap-day) 0 1.6rem;
+  padding-top: 1.9rem;
   border-top: 1px solid var(--rule-strong);
   font-weight: 600;
 }
@@ -361,29 +440,48 @@ a:focus-visible {
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--accent);
-  margin-bottom: 0.55rem;
+  margin-bottom: 0.3rem;
 }
 
 .day-date {
   display: block;
-  font-size: clamp(1.9rem, 3.6vw, 2.6rem);
+  font-size: var(--t-day);
   line-height: 1.1;
   letter-spacing: -0.01em;
 }
 
 .prose > h2 {
-  font-size: clamp(1.3rem, 1.6vw, 1.5rem);
+  font-size: var(--t-head);
   font-weight: 600;
   line-height: 1.25;
-  margin: 3rem 0 0.9rem;
+  margin: var(--gap-head) 0 0.6rem;
 }
 
+/* Was 0.82rem in --muted, which put it below the body size and below the body
+   contrast: a heading quieter than the text it introduces reads as a caption.
+   Same mono voice as the contents rail, but at full ink and above the body
+   size, so it holds a level. */
 .prose > h3 {
-  font: 500 0.82rem var(--mono);
+  font: 600 var(--t-sub) / 1.4 var(--mono);
   text-transform: uppercase;
-  letter-spacing: 0.11em;
-  color: var(--muted);
-  margin: 2.5rem 0 0.7rem;
+  letter-spacing: 0.09em;
+  color: var(--ink);
+  margin: var(--gap-sub) 0 0.45rem;
+}
+
+/* `.prose` is a grid, and grid items do not collapse their margins. So every
+ * heading's top margin was landing on top of the previous element's bottom
+ * margin instead of overlapping it — 48px of heading space became 48 + 24, and
+ * the page read as though it had been pulled apart. This restores collapsing by
+ * hand: whatever precedes a heading gives up its bottom margin, so the heading's
+ * own top margin is the entire interval, which is what the tokens above claim.
+ *
+ * It has to sit AFTER the heading rules. `:has()` takes the specificity of its
+ * most specific argument, so this weighs exactly the same as `.prose > h1` — at
+ * equal specificity the later rule wins, and above the headings it silently
+ * lost to every one of them. */
+.prose > :has(+ :is(h1, h2, h3)) {
+  margin-bottom: 0;
 }
 
 .prose > ol,

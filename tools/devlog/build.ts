@@ -531,6 +531,36 @@ const html = `<!doctype html>
     <meta property="og:url" content="${CANONICAL}" />
     <meta property="og:image" content="https://imtani.dev${PUBLIC_BASE}/rise-and-shine-cover.webp" />
     <meta name="twitter:card" content="summary_large_image" />
+    <!--
+      The author is a reference to the Person node declared on the home page,
+      not a second description of him. One @id across the site is what lets a
+      search engine treat the article and the identity as the same graph
+      instead of two pages that happen to share a name.
+    -->
+    <script type="application/ld+json">
+${JSON.stringify(
+  {
+    '@context': 'https://schema.org',
+    '@type': 'BlogPosting',
+    headline: docTitle,
+    description,
+    url: CANONICAL,
+    mainEntityOfPage: CANONICAL,
+    image: `https://imtani.dev${PUBLIC_BASE}/rise-and-shine-cover.webp`,
+    author: { '@type': 'Person', '@id': 'https://imtani.dev/#person', name: 'Tanishk Narula' },
+    publisher: { '@id': 'https://imtani.dev/#person' },
+    inLanguage: 'en',
+    keywords: ['Godot', 'game jam', 'devlog', 'shaders', 'game development'],
+    about: { '@type': 'VideoGame', name: 'Rise&Shine', url: GAME },
+    award: `Most Educational Devlog Prize, Learn You A Game Jam ${JAM_YEAR}`,
+  },
+  null,
+  2,
+)
+  .split('\n')
+  .map((line) => `      ${line}`)
+  .join('\n')}
+    </script>
     <style>
 ${css.trimEnd()}
     </style>

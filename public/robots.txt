@@ -1,0 +1,13 @@
+# imtani.dev
+#
+# Everything here is public and meant to be read. Nothing is disallowed,
+# because there is nothing on this origin that is not intended to be found.
+#
+# This file exists mostly to declare the sitemap. Without one, Cloudflare
+# serves a generated robots.txt in its place — that file is entirely comments
+# with no directives and no Sitemap line, so it points a crawler at nothing.
+
+User-agent: *
+Allow: /
+
+Sitemap: https://imtani.dev/sitemap.xml

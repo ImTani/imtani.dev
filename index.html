@@ -11,6 +11,66 @@
     <link rel="canonical" href="https://imtani.dev/" />
     <meta name="theme-color" content="#111214" media="(prefers-color-scheme: dark)" />
     <meta name="theme-color" content="#fbfaf8" media="(prefers-color-scheme: light)" />
+
+    <meta property="og:type" content="profile" />
+    <meta property="og:title" content="Tanishk Narula" />
+    <meta property="og:site_name" content="imtani.dev" />
+    <meta
+      property="og:description"
+      content="Machine learning and systems engineering. Currently at AiHello, and co-founding SmoothSend."
+    />
+    <meta property="og:url" content="https://imtani.dev/" />
+    <meta property="profile:first_name" content="Tanishk" />
+    <meta property="profile:last_name" content="Narula" />
+    <meta property="profile:username" content="ImTani" />
+    <meta name="twitter:card" content="summary" />
+
+    <!--
+      rel="me" is the identity half; the JSON-LD below is the search half.
+
+      Both directions have to exist for either to mean anything: a link from
+      here to a profile is a claim, and the link back from that profile is what
+      makes it evidence. GitHub already points at imtani.dev, so that pair is
+      closed. The others are one-way until each profile links back — that is a
+      job on the profiles, not in this file.
+    -->
+    <link rel="me" href="https://www.linkedin.com/in/tanishk-narula" />
+    <link rel="me" href="https://github.com/ImTani" />
+    <link rel="me" href="https://infinitani.itch.io" />
+    <link rel="me" href="https://www.twitch.tv/infinitani" />
+    <link rel="me" href="https://x.com/infinitani" />
+    <link rel="me" href="https://x.com/TaniOnTheBlock" />
+    <link rel="me" href="mailto:hey@imtani.dev" />
+
+    <!--
+      One Person node, given a stable @id so every other page on the site can
+      point at it rather than describing him again. `sameAs` is the list that
+      tells a search engine these accounts are one person; without it they are
+      five unrelated handles that happen to share a name.
+
+      Nothing here is claimed that the visible page does not already say.
+    -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Person",
+        "@id": "https://imtani.dev/#person",
+        "name": "Tanishk Narula",
+        "alternateName": "infiniTani",
+        "url": "https://imtani.dev/",
+        "email": "hey@imtani.dev",
+        "jobTitle": "Machine learning and systems engineer",
+        "worksFor": { "@type": "Organization", "name": "AiHello" },
+        "sameAs": [
+          "https://www.linkedin.com/in/tanishk-narula",
+          "https://github.com/ImTani",
+          "https://infinitani.itch.io",
+          "https://www.twitch.tv/infinitani",
+          "https://x.com/infinitani",
+          "https://x.com/TaniOnTheBlock"
+        ]
+      }
+    </script>
     <style>
       /* Deliberately plain. The visual language for this site is not decided,
          and a holding page is the wrong place to decide it — anything with a

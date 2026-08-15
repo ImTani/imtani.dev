@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Every indexable page on imtani.dev. /harness is deliberately absent: it is
+  the engine's test rig and carries a noindex.
+
+  No <lastmod>. A date that is not maintained is worse than none — a crawler
+  that is told a page changed and finds it identical learns to distrust the
+  file. Add dates here only if something starts writing them honestly.
+
+  Add a line when a page ships.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://imtani.dev/</loc>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://imtani.dev/writing/rise-and-shine</loc>
+    <priority>0.8</priority>
+  </url>
+</urlset>
