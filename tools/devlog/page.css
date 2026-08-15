@@ -1,0 +1,525 @@
+/* Rise&Shine devlog — inlined into the page by tools/devlog/build.ts.
+ *
+ * Paper and ink. The only job here is to be read: one column at a comfortable
+ * measure, an old-style serif from the system stack, hairlines instead of
+ * boxes, and no motion the reader did not ask for. Nothing is justified,
+ * nothing has a shadow, nothing is a card.
+ *
+ * No webfonts. Self-hosting one is a licensing decision that has not been made,
+ * and a reading page that blocks on a font download is worse than one set in
+ * Charter. */
+
+:root {
+  color-scheme: light dark;
+
+  --paper: #faf6ee;
+  --ink: #1b1a17;
+  --muted: #6d6a62;
+  --accent: #b4432c;
+  --rule: #e5decd;
+  --rule-strong: #cec5b0;
+  --sunk: #f3eede;
+  --underline: #dda694;
+
+  --serif: 'Sitka Text', Charter, 'Iowan Old Style', Constantia, Georgia, serif;
+  --mono: ui-monospace, 'Cascadia Mono', 'SF Mono', 'Segoe UI Mono', Menlo, Consolas, monospace;
+
+  /* ~68 characters at the body size. Anything wider and the eye loses the
+     start of the next line on the return sweep. */
+  --measure: 40rem;
+  --wide: 54rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #111316;
+    --ink: #e9e6e1;
+    --muted: #8a9099;
+    --accent: #e07a5f;
+    --rule: #262a2f;
+    --rule-strong: #363c43;
+    --sunk: #171a1e;
+    --underline: #6f4034;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  /* Anchor targets land under the heading, not welded to the viewport edge. */
+  scroll-padding-top: 2rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 400 clamp(1rem, 0.3vw + 0.95rem, 1.125rem) / 1.7 var(--serif);
+  font-variant-numeric: oldstyle-num;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ---------------------------------------------------------------- links --- */
+
+a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--underline);
+  text-underline-offset: 0.18em;
+}
+
+a:hover,
+a:focus-visible {
+  color: var(--accent);
+  text-decoration-color: currentColor;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.skip {
+  position: absolute;
+  left: -9999px;
+}
+
+.skip:focus {
+  left: 1rem;
+  top: 1rem;
+  z-index: 10;
+  background: var(--paper);
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--ink);
+  font: 500 0.8rem var(--mono);
+}
+
+/* --------------------------------------------------------------- layout --- */
+
+.page {
+  max-width: 72rem;
+  margin-inline: auto;
+  padding-inline: clamp(1.25rem, 4vw, 3rem);
+  padding-bottom: 6rem;
+}
+
+.layout > .prose {
+  min-width: 0;
+}
+
+@media (min-width: 78rem) {
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 14rem;
+    column-gap: 4rem;
+    align-items: start;
+  }
+
+  .layout > .toc {
+    grid-column: 2;
+    grid-row: 1;
+    position: sticky;
+    top: 2.5rem;
+    max-height: calc(100vh - 5rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .layout > .prose {
+    grid-column: 1;
+    grid-row: 1;
+  }
+}
+
+/* ------------------------------------------------------------- masthead --- */
+
+.masthead {
+  max-width: var(--wide);
+  padding: 3rem 0 0;
+}
+
+.masthead-up {
+  font: 500 0.75rem var(--mono);
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 3rem;
+}
+
+.title {
+  font-size: clamp(2.3rem, 5.5vw, 3.5rem);
+  line-height: 1.04;
+  letter-spacing: -0.015em;
+  font-weight: 600;
+  margin: 0;
+}
+
+.tagline {
+  font-style: italic;
+  color: var(--muted);
+  font-size: 1.15rem;
+  margin: 0.5rem 0 0;
+}
+
+.byline {
+  font: 500 0.85rem var(--mono);
+  margin: 1.75rem 0 0;
+  color: var(--ink);
+}
+
+.byline .handle {
+  color: var(--muted);
+}
+
+.meta {
+  font: 400 0.78rem / 1.9 var(--mono);
+  color: var(--muted);
+  margin: 0.35rem 0 0;
+}
+
+.sep {
+  opacity: 0.45;
+  padding: 0 0.15rem;
+}
+
+.award {
+  margin: 1.75rem 0 0;
+  padding: 0.85rem 0 0;
+  border-top: 1px solid var(--rule);
+  font: 500 0.78rem / 1.6 var(--mono);
+  color: var(--accent);
+  letter-spacing: 0.03em;
+}
+
+.award .award-where {
+  color: var(--muted);
+  letter-spacing: 0;
+}
+
+.masthead-links {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1.5rem;
+  margin: 0.9rem 0 0;
+  padding: 0 0 2.5rem;
+  font: 400 0.8rem var(--mono);
+}
+
+/* ------------------------------------------------------------------ toc --- */
+
+.toc {
+  font: 400 0.78rem / 1.45 var(--mono);
+}
+
+.toc-h {
+  font: 500 0.7rem var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+  margin: 0 0 0.75rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.toc ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.toc a {
+  display: block;
+  padding: 0.2rem 0;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.toc a:hover,
+.toc a:focus-visible {
+  color: var(--accent);
+}
+
+.toc .lvl-1 > a {
+  color: var(--ink);
+  margin-top: 0.85rem;
+}
+
+.toc .lvl-1 > a .toc-when {
+  color: var(--muted);
+}
+
+.toc .lvl-2 > a {
+  padding-left: 0.8rem;
+}
+
+.toc .lvl-3 > a {
+  padding-left: 1.7rem;
+}
+
+/* Narrow screens get the spine only — nine days and an epilogue, laid out as a
+   row. The full forty-two-entry outline is a wall on a phone, and the sections
+   are two swipes apart once you are on the right day anyway. */
+@media (max-width: 77.99rem) {
+  .toc {
+    max-width: var(--wide);
+    margin: 0 0 3.5rem;
+    padding: 1.1rem 0;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .toc .lvl-2,
+  .toc .lvl-3 {
+    display: none;
+  }
+
+  .toc > ol {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 1.5rem;
+  }
+
+  .toc .lvl-1 > a {
+    margin-top: 0;
+  }
+}
+
+/* ---------------------------------------------------------------- prose --- */
+
+/* Two columns, both starting at the same left edge: prose sets to the measure,
+   and figures, code and the day rules run on past it. Everything shares one
+   margin with the masthead, so the eye has a single vertical line to return to
+   and the extra width goes where extra width is useful. */
+.prose {
+  display: grid;
+  grid-template-columns:
+    [wide-start text-start] minmax(0, var(--measure))
+    [text-end] minmax(0, 1fr) [wide-end];
+}
+
+.prose > * {
+  grid-column: text;
+  min-width: 0;
+}
+
+.prose > figure,
+.prose > pre,
+.prose > h1 {
+  grid-column: wide;
+  justify-self: start;
+  width: 100%;
+  max-width: var(--wide);
+}
+
+.prose > p {
+  margin: 0 0 1.35em;
+  text-wrap: pretty;
+}
+
+.prose > .lede {
+  font-size: 1.15em;
+  line-height: 1.6;
+}
+
+.prose > hr {
+  border: 0;
+  border-top: 1px solid var(--rule);
+  width: 4rem;
+  margin: 3.5rem 0 0;
+}
+
+/* Day headings are the spine. Full-width rule, a mono index in the accent, the
+   date large underneath — the same shape every time so that scrolling past one
+   reads as a page turn. */
+.prose > h1 {
+  margin: 5.5rem 0 2.25rem;
+  padding-top: 2.25rem;
+  border-top: 1px solid var(--rule-strong);
+  font-weight: 600;
+}
+
+.prose > h1:first-child {
+  margin-top: 0;
+}
+
+.day-index {
+  display: block;
+  font: 500 0.78rem var(--mono);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 0.55rem;
+}
+
+.day-date {
+  display: block;
+  font-size: clamp(1.9rem, 3.6vw, 2.6rem);
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+}
+
+.prose > h2 {
+  font-size: clamp(1.3rem, 1.6vw, 1.5rem);
+  font-weight: 600;
+  line-height: 1.25;
+  margin: 3rem 0 0.9rem;
+}
+
+.prose > h3 {
+  font: 500 0.82rem var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.11em;
+  color: var(--muted);
+  margin: 2.5rem 0 0.7rem;
+}
+
+.prose > ol,
+.prose > ul {
+  margin: 0 0 1.35em;
+  padding-left: 1.4em;
+}
+
+.prose li {
+  margin-bottom: 0.5em;
+}
+
+.prose li::marker {
+  color: var(--muted);
+}
+
+.prose strong {
+  font-weight: 600;
+}
+
+.prose del {
+  color: var(--muted);
+}
+
+/* ----------------------------------------------------------------- code --- */
+
+code {
+  font-family: var(--mono);
+  font-size: 0.85em;
+}
+
+:not(pre) > code {
+  background: var(--sunk);
+  border: 1px solid var(--rule);
+  padding: 0.05em 0.32em;
+  /* Identifiers like `PositionFlippingComponent` are longer than a phone
+     column. Breaking one mid-token is ugly; overflowing the page is worse. */
+  overflow-wrap: break-word;
+}
+
+pre {
+  margin: 2.25rem auto;
+  padding: 1.15rem 1.3rem;
+  background: var(--sunk);
+  border: 1px solid var(--rule);
+  overflow-x: auto;
+  tab-size: 2;
+}
+
+pre code {
+  font-size: 0.8rem;
+  line-height: 1.65;
+  white-space: pre;
+}
+
+/* --------------------------------------------------------------- asides --- */
+
+.note {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 0.85rem;
+  margin: 2.25rem 0;
+  padding: 0.1rem 0 0.1rem 1.15rem;
+  border-left: 2px solid var(--accent);
+  font-size: 0.95em;
+}
+
+.note > :not(.note-icon) {
+  grid-column: 2;
+}
+
+.note-icon {
+  font-size: 1.05rem;
+  line-height: 1.6;
+}
+
+.note > p {
+  margin: 0 0 0.8em;
+}
+
+.note > p:last-child {
+  margin-bottom: 0;
+}
+
+/* -------------------------------------------------------------- figures --- */
+
+/* Never upscaled. `--fig-w` is the transcoded file's own pixel width, written
+   per figure by the build; a 293px scene-tree screenshot stretched to 54rem is
+   a smear, and the reader learns nothing from a bigger blur. */
+.prose > figure {
+  max-width: min(var(--wide), var(--fig-w, 100vw));
+}
+
+/* Block margins only. An `auto` inline margin outranks the grid's
+   `justify-self: start` and would nudge every narrow figure off the left
+   margin the rest of the page is built on. */
+.fig {
+  margin: 2.5rem 0 2.75rem;
+}
+
+.fig img,
+.fig video {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: var(--sunk);
+  border: 1px solid var(--rule);
+}
+
+.fig figcaption {
+  font: 400 0.78rem / 1.55 var(--mono);
+  color: var(--muted);
+  margin-top: 0.7rem;
+  text-wrap: pretty;
+}
+
+.fig figcaption em {
+  font-style: italic;
+}
+
+.clips-live .clip {
+  cursor: pointer;
+}
+
+/* ------------------------------------------------------------ colophon --- */
+
+.colophon {
+  max-width: var(--wide);
+  margin-top: 5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--rule-strong);
+  font: 400 0.78rem / 1.7 var(--mono);
+  color: var(--muted);
+}
+
+.colophon p {
+  margin: 0 0 0.7em;
+  max-width: 46ch;
+}
