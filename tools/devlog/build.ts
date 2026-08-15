@@ -26,9 +26,9 @@ import MarkdownIt from 'markdown-it';
 
 import {
   ALT_OVERRIDES,
-  ALT_REWRITES,
   MEDIA_MANIFEST_REL,
   PUBLIC_BASE,
+  REMOTE_EMBEDS,
   SLUGS,
   SOURCE_DIR_REL,
   SOURCE_MARKDOWN,
@@ -119,6 +119,49 @@ const manifest = JSON.parse(
 
 const css = readFileSync(join(here, 'page.css'), 'utf8');
 const clipScript = readFileSync(join(here, 'clips.js'), 'utf8');
+
+/**
+ * The three embeds we do not host are the only part of this page that can rot,
+ * and one of them had — the Steemit proxy answers `200 OK` with a 67-byte JSON
+ * body saying the image is missing, so it rendered as a broken-image stub in
+ * the middle of the trigonometry section and no status-code monitor would ever
+ * have flagged it. Checking the status is not enough; the content type is what
+ * actually distinguishes an image from an apology.
+ *
+ * A failed lookup is a build error, because the alternative is shipping the
+ * page and finding out from a reader. A failed *connection* is not: no network
+ * is a fact about this machine, not about the URL, and failing the build on a
+ * flight would be a worse bug than the one this catches.
+ */
+async function checkRemoteEmbeds(): Promise<void> {
+  await Promise.all(
+    Object.values(REMOTE_EMBEDS).map(async (embed) => {
+      let response: Response;
+      try {
+        response = await fetch(embed.url, {
+          method: 'HEAD',
+          redirect: 'follow',
+          signal: AbortSignal.timeout(15_000),
+        });
+      } catch (error) {
+        const why = error instanceof Error ? error.message : String(error);
+        process.stderr.write(`devlog: could not reach ${embed.url} (${why}); not checked\n`);
+        return;
+      }
+
+      const type = response.headers.get('content-type') ?? '(none)';
+      if (!response.ok || !type.startsWith('image/')) {
+        throw new Error(
+          `remote embed is no longer an image: ${embed.url}\n` +
+            `  answered ${response.status} ${response.statusText}, content-type ${type}\n` +
+            '  repoint it or drop the figure in tools/devlog/embeds.ts',
+        );
+      }
+    }),
+  );
+}
+
+await checkRemoteEmbeds();
 
 /**
  * Notion writes its callouts as literal `<aside>` blocks with the emoji as the
@@ -226,9 +269,15 @@ const md = new MarkdownIt({ html: true, linkify: false, typographer: false });
 // The export tags every block `swift`; all of it is GDScript. Rather than ship a
 // wrong language class, ship none — there is no highlighter on this page and a
 // class nothing reads is a claim nothing checks.
+//
+// `tabindex="0"` because these blocks scroll sideways: every one of the ten
+// overflows at 390px and at 320px, four do at 768px, and a scroll container
+// that is not focusable is a region a keyboard cannot reach at all — the
+// widest block hides 134px of itself on a 320px phone. Making it focusable is
+// the whole fix; the browser's own arrow keys do the rest.
 md.renderer.rules['fence'] = (tokens, idx) => {
   const token = tokens[idx];
-  return `<pre><code>${escapeHtml(token?.content ?? '')}</code></pre>\n`;
+  return `<pre tabindex="0"><code>${escapeHtml(token?.content ?? '')}</code></pre>\n`;
 };
 
 const tokens = md.parse(
@@ -281,6 +330,8 @@ function uniqueId(base: string): string {
 }
 
 const dayDates: string[] = [];
+/** `21 July 2026` — the epilogue heading, which is the article's last edit. */
+let epilogueDate = '';
 
 /** `June 19, Day 1` and `June 23, Day 5 - June 26, Day 8`, plus the epilogue. */
 function readDayHeading(text: string): { index: string; date: string; slug: string } {
@@ -315,18 +366,49 @@ function figureMarkup(imageToken: Token, captionHtml: string | null): string {
 
   const caption = captionHtml ? `\n  <figcaption>${captionHtml}</figcaption>` : '';
 
+  /**
+   * A caption is attached above only when the export's own alt text and the
+   * paragraph under the image are the same string — that is the Notion damage
+   * this build repairs. So wherever a caption exists, repeating that string in
+   * `alt` or `aria-label` makes a screen reader say it twice: once as the
+   * figure's name and once as the image's. The caption is the one that stays,
+   * because it is the one sighted readers get too.
+   *
+   * The exception is the handful of figures where we wrote a better
+   * description than the export's — an `ALT_OVERRIDES` entry, or a remote
+   * embed's `alt`. Those are not duplicates of anything and are the only
+   * description of the picture there is, so they are kept.
+   */
+  function describe(authored: string | undefined): string {
+    return authored ?? (captionHtml ? '' : altSource);
+  }
+
   if (isRemote(rawSrc)) {
     // Three embeds are other people's images hosted elsewhere — a Steemit
     // mirror, a GeeksforGeeks diagram and a Giphy reaction. Re-hosting them here
     // would be republishing work that is not his, so they stay where they are
     // and stay attributed by their URL. They are the only part of this page that
     // can rot; everything else is on our own disk.
-    const rewrite = Object.entries(ALT_REWRITES).find(([file]) => rawSrc.includes(file));
-    const alt = rewrite ? rewrite[1] : altSource;
+    //
+    // What they get from us is the same treatment the local figures get: a
+    // measured intrinsic size, so the browser reserves the box before the bytes
+    // arrive and `--fig-w` stops a 480px GIF being blown up to 864.
+    const remote = REMOTE_EMBEDS[rawSrc];
+    if (!remote) {
+      throw new Error(
+        `no entry for remote embed "${rawSrc}" — add it to tools/devlog/embeds.ts`,
+      );
+    }
+    const alt = describe(remote.alt);
+    // An animated GIF has no controls and cannot be paused, so it is the one
+    // thing on the page the reader cannot stop. `data-motion` is what the
+    // masthead's pause control looks for; see clips.js.
+    const motion = remote.animated ? ' data-motion' : '';
     return (
-      `<figure class="fig fig-remote">\n` +
-      `  <img src="${escapeHtml(rawSrc)}" alt="${escapeHtml(alt)}"` +
-      ` loading="lazy" decoding="async" referrerpolicy="no-referrer" />${caption}\n` +
+      `<figure class="fig fig-remote" style="--fig-w:${remote.width}px">\n` +
+      `  <img src="${escapeHtml(remote.url)}" alt="${escapeHtml(alt)}"` +
+      ` width="${remote.width}" height="${remote.height}"` +
+      ` loading="lazy" decoding="async" referrerpolicy="no-referrer"${motion} />${caption}\n` +
       `</figure>`
     );
   }
@@ -343,18 +425,18 @@ function figureMarkup(imageToken: Token, captionHtml: string | null): string {
 
   // Notion puts the filename in the alt slot when a block has no caption, which
   // is what a screen reader would then be read out.
-  const alt = ALT_OVERRIDES[rawSrc] ?? altSource;
+  const alt = describe(ALT_OVERRIDES[rawSrc]);
   const style = ` style="--fig-w:${entry.width}px"`;
 
   if (extensionOf(rawSrc) === 'gif') {
     // WebM first: everything but Safari takes VP9, which is the smaller file,
     // and Safari falls through to H.264. `controls` is in the markup on purpose
     // and clips.js removes it — see that file.
+    const label = alt ? ` aria-label="${escapeHtml(alt)}"` : '';
     return (
       `<figure class="fig"${style}>\n` +
       `  <video class="clip" data-clip loop muted playsinline controls preload="none"\n` +
-      `         poster="${PUBLIC_BASE}/${slug}.webp" width="${entry.width}" height="${entry.height}"\n` +
-      `         aria-label="${escapeHtml(alt)}">\n` +
+      `         poster="${PUBLIC_BASE}/${slug}.webp" width="${entry.width}" height="${entry.height}"${label}>\n` +
       `    <source src="${PUBLIC_BASE}/${slug}.webm" type="video/webm" />\n` +
       `    <source src="${PUBLIC_BASE}/${slug}.mp4" type="video/mp4" />\n` +
       `  </video>${caption}\n` +
@@ -396,7 +478,8 @@ for (let i = 0; i < tokens.length; i += 1) {
     if (token.tag === 'h1') {
       const day = readDayHeading(text);
       const id = uniqueId(day.slug);
-      if (day.index !== 'Epilogue') dayDates.push(day.date);
+      if (day.index === 'Epilogue') epilogueDate = day.date;
+      else dayDates.push(day.date);
       toc.push({ level: 1, id, label: day.index, when: day.date });
 
       token.type = 'html_block';
@@ -478,6 +561,26 @@ const firstDay = dayDates[0] ?? '';
 const lastDay = (dayDates[dayDates.length - 1] ?? '').split('–').pop()?.trim() ?? '';
 const dateRange = `${firstDay} – ${lastDay}, ${JAM_YEAR}`;
 
+/**
+ * The two dates the structured data was missing, taken from the headings rather
+ * than invented: the article was published on the last day it covers, and last
+ * changed on the day of the epilogue he came back and added.
+ *
+ * Parsed through `Date` and asserted, because a heading that stops matching
+ * `readDayHeading` would otherwise put `Invalid Date` in the JSON-LD, and a
+ * wrong date in structured data is worse than none.
+ */
+function isoDay(text: string, what: string): string {
+  const when = new Date(`${text} UTC`);
+  if (Number.isNaN(when.getTime())) {
+    throw new Error(`could not read a date out of the ${what} heading: "${text}"`);
+  }
+  return when.toISOString().slice(0, 10);
+}
+
+const datePublished = isoDay(`${lastDay} ${JAM_YEAR}`, 'last day');
+const dateModified = isoDay(epilogueDate, 'epilogue');
+
 const tocHtml = (() => {
   const lines: string[] = [];
   let depth = 0;
@@ -523,6 +626,13 @@ const html = `<!doctype html>
     <meta name="description" content="${escapeHtml(description)}" />
     <meta name="author" content="Tanishk Narula" />
     <link rel="canonical" href="${CANONICAL}" />
+    <!--
+      The favicon is deferred until the identity exists, so there is no icon to
+      point at and /favicon.ico 404s on every load. An empty data URL is the
+      one way to say "there is no icon" that costs no request; delete this line
+      the day there is a real one.
+    -->
+    <link rel="icon" href="data:," />
     <meta name="theme-color" content="#111316" media="(prefers-color-scheme: dark)" />
     <meta name="theme-color" content="#faf6ee" media="(prefers-color-scheme: light)" />
     <meta property="og:type" content="article" />
@@ -546,6 +656,8 @@ ${JSON.stringify(
     description,
     url: CANONICAL,
     mainEntityOfPage: CANONICAL,
+    datePublished,
+    dateModified,
     image: `https://imtani.dev${PUBLIC_BASE}/rise-and-shine-cover.webp`,
     author: { '@type': 'Person', '@id': 'https://imtani.dev/#person', name: 'Tanishk Narula' },
     publisher: { '@id': 'https://imtani.dev/#person' },
@@ -580,10 +692,20 @@ ${css.trimEnd()}
           Most Educational Devlog Prize<br />
           <span class="award-where"><a href="${JAM}">Learn You A Game Jam ${JAM_YEAR}</a></span>
         </p>
+        <!--
+          The pause control ships hidden and clips.js reveals it, because it is
+          only true when clips.js is running. With JavaScript off, or under
+          reduced motion, nothing starts by itself and every clip already has
+          its own controls — a button offering to stop motion that is not
+          happening would be the page lying about itself.
+        -->
         <ul class="masthead-links">
           <li><a href="${REPO}">source code</a></li>
           <li><a href="${GAME}">play Rise&amp;Shine</a></li>
           <li><a href="#article">start reading</a></li>
+          <li hidden>
+            <button class="motion-button" type="button" data-motion-toggle>Pause the motion</button>
+          </li>
         </ul>
       </header>
 
@@ -593,7 +715,15 @@ ${css.trimEnd()}
 ${tocHtml}
         </nav>
 
-        <article class="prose" id="article">
+        <!--
+          A role rather than a main element: the landmark set was banner,
+          navigation and contentinfo with nothing in the middle, and at the wide
+          breakpoint the layout wrapper dissolves into the page grid with
+          display:contents, so a second wrapper here would be another element
+          needing grid treatment to sit exactly where this one already sits.
+          The role is the same landmark for no layout at all.
+        -->
+        <article class="prose" id="article" role="main">
 ${bodyHtml}
         </article>
       </div>

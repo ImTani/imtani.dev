@@ -19,7 +19,12 @@
   --rule: #e5decd;
   --rule-strong: #cec5b0;
   --sunk: #f3eede;
-  --underline: #dda694;
+  /* The link underline is the only thing telling fifty-eight outbound links
+     apart from the prose around them, since link text is `inherit`. The old
+     value measured 1.96:1 on paper — under half of what technique G183 asks of
+     a non-text distinction, and close enough to invisible on a dim screen that
+     the page read as though it had no links in it. */
+  --underline: #c07b62;
 
   --serif: 'Sitka Text', Charter, 'Iowan Old Style', Constantia, Georgia, serif;
   --mono: ui-monospace, 'Cascadia Mono', 'SF Mono', 'Segoe UI Mono', Menlo, Consolas, monospace;
@@ -62,7 +67,9 @@
     --rule: #262a2f;
     --rule-strong: #363c43;
     --sunk: #171a1e;
-    --underline: #6f4034;
+    /* 3.55:1 against the dark paper, where the old value was 2.18:1. Still far
+       quieter than the accent a hovered link takes, which is 6.31:1. */
+    --underline: #9a5c4a;
   }
 }
 
@@ -87,7 +94,9 @@ body {
   background: var(--paper);
   color: var(--ink);
   font: 400 clamp(1rem, 0.3vw + 0.95rem, 1.125rem) / 1.7 var(--serif);
-  font-variant-numeric: oldstyle-num;
+  /* `oldstyle-num` — the singular — is not a keyword, so this declaration was
+     dropped and the old-style figures it asks for were never rendering. */
+  font-variant-numeric: oldstyle-nums;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -173,10 +182,19 @@ a:focus-visible {
  *
  *   54rem column + 2 x (2.5rem gap + 12.5rem rail) + 2 x 3rem page padding
  *   = 90rem = 1440px
+ *   + 1rem for the scrollbar
+ *   = 91rem = 1456px
+ *
+ * The scrollbar term is not slack. A media query measures the viewport and
+ * layout gets the viewport minus the classic scrollbar, so at exactly 1440 the
+ * rail was laid out in 1424px of room and took its last 16px out of the page's
+ * right padding — 48px of air became 40.5. One rem covers the widest scrollbar
+ * Windows draws; where the platform overlays its scrollbar instead, the term
+ * costs 16px of extra air on the right and nothing else.
  *
  * Under that, the spine. It is one number: lower `--rail` to bring the rail
  * back at narrower widths, at the cost of the longest entries wrapping. */
-@media (min-width: 90rem) {
+@media (min-width: 91rem) {
   /* `display: contents` promotes the rail and the article into the page grid
      so both can address its named columns. The wrapper is a plain div, so it
      carries no role for this to dissolve. */
@@ -210,7 +228,18 @@ a:focus-visible {
     top: 3rem;
     max-height: calc(100vh - 6rem);
     overflow-y: auto;
-    overscroll-behavior: contain;
+    /* `overflow-y: auto` forces `overflow-x` to clip, and the links sit flush
+       with the rail's content box, so a focus ring drawn 3px outside a link
+       came out as two horizontal bars with no ends. Five pixels of inside air
+       is exactly what the ring needs — 3px of offset plus its own 2px.
+       Padding rather than a wider rail, because the rail's own box is what the
+       breakpoint above is derived from and widening it would push it back into
+       the page's right padding. The price is 190px of text instead of 200,
+       which takes the entries that wrap to two lines from four to six of
+       forty-one. `overflow-clip-margin` would have cost nothing, but it only
+       applies to `overflow: clip`, and `clip` beside a scrolling axis computes
+       to `hidden` — checked, not assumed. */
+    padding-inline: 5px;
   }
 }
 
@@ -280,14 +309,41 @@ a:focus-visible {
   letter-spacing: 0;
 }
 
+/* The row gap is a target-size rule, not a rhythm one. These wrap on a narrow
+   phone, and at 0.35rem the centres of two stacked 15px links sat 20.6px apart
+   — under the 24px WCAG 2.5.8 allows an undersized target to earn back through
+   spacing. 0.75rem puts them 27px apart. Nothing changes above 360px, where
+   they have never wrapped. */
 .masthead-links {
   list-style: none;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.35rem 1.5rem;
+  gap: 0.75rem 1.5rem;
   margin: 0.9rem 0 0;
   padding: 0 0 2.5rem;
   font: 400 0.8rem var(--mono);
+}
+
+/* One of the row of things you can do here, and it reads as one. A button is
+   what it has to be — it acts on this page rather than going anywhere — but
+   dressing it as a button would put the only box on a page that has none. */
+.motion-button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--underline);
+  text-underline-offset: 0.18em;
+}
+
+.motion-button:hover,
+.motion-button:focus-visible {
+  color: var(--accent);
+  text-decoration-color: currentColor;
 }
 
 /* ------------------------------------------------------------------ toc --- */
@@ -344,7 +400,7 @@ a:focus-visible {
 /* Narrow screens get the spine only — nine days and an epilogue, laid out as a
    row. The full forty-two-entry outline is a wall on a phone, and the sections
    are two swipes apart once you are on the right day anyway. */
-@media (max-width: 89.99rem) {
+@media (max-width: 90.99rem) {
   .toc {
     max-width: var(--wide);
     margin: 0 0 3.5rem;
@@ -522,8 +578,12 @@ code {
   overflow-wrap: break-word;
 }
 
+/* Block margins only, for the reason `.fig` gives below: an `auto` inline
+   margin outranks the grid's `justify-self: start`. It happens to be inert
+   here, because `.prose > pre` fills its track exactly — but a rule that is
+   only correct by accident is one somebody has to work out again later. */
 pre {
-  margin: 2.25rem auto;
+  margin: 2.25rem 0;
   padding: 1.15rem 1.3rem;
   background: var(--sunk);
   border: 1px solid var(--rule);
@@ -606,6 +666,26 @@ pre code {
   cursor: pointer;
 }
 
+/* What is left of a remote animated GIF once the reader has asked the page to
+   hold still. It keeps the figure's box — the aspect ratio is set from the
+   image's own width and height attributes — so stopping the motion does not
+   move the paragraph anybody was reading. Same sunk panel and hairline as a
+   code block, because it is the same kind of hole in the page. */
+.motion-stub {
+  display: block;
+  width: 100%;
+  background: var(--sunk);
+  border: 1px solid var(--rule);
+  color: var(--muted);
+  font: 400 0.78rem var(--mono);
+  cursor: pointer;
+}
+
+.motion-stub:hover,
+.motion-stub:focus-visible {
+  color: var(--accent);
+}
+
 /* ------------------------------------------------------------ colophon --- */
 
 .colophon {
@@ -620,4 +700,77 @@ pre code {
 .colophon p {
   margin: 0 0 0.7em;
   max-width: 46ch;
+}
+
+/* ---------------------------------------------------------------- print --- */
+
+/* This is a twenty-seven minute article that won a prize for being educational,
+ * which is to say it is a thing people print and mark up. It printed badly, and
+ * one of the reasons was not cosmetic: a browser carries the reader's colour
+ * scheme into the print job, backgrounds are not printed, and so a reader in
+ * dark mode got `#e9e6e1` text on white paper — a page that came out blank.
+ *
+ * So the tokens are restated for ink on paper, and the rest is the handful of
+ * things paper needs and a screen does not: no navigation, no controls, code
+ * that wraps instead of running off the edge of the sheet, and figures and
+ * headings that do not straddle a page break. */
+@media print {
+  :root {
+    color-scheme: light;
+
+    --paper: #fff;
+    --ink: #111111;
+    --muted: #444444;
+    --accent: #8f3521;
+    --rule: #bbbbbb;
+    --rule-strong: #888888;
+    --sunk: #f4f4f4;
+    --underline: #888888;
+  }
+
+  .page {
+    padding-inline: 0;
+    padding-bottom: 0;
+  }
+
+  .masthead {
+    padding-top: 0;
+  }
+
+  /* The rail is navigation and the button acts on a document that has stopped
+     being interactive. The other masthead links are references, so they stay
+     and say where they went. */
+  .skip,
+  .toc,
+  .motion-button {
+    display: none;
+  }
+
+  .masthead-links a::after {
+    content: ' ' attr(href);
+    color: var(--muted);
+  }
+
+  .prose > p {
+    orphans: 3;
+    widows: 3;
+  }
+
+  .prose > h1,
+  .prose > h2,
+  .prose > h3 {
+    break-after: avoid;
+  }
+
+  .prose > figure,
+  .prose > pre,
+  .note {
+    break-inside: avoid;
+  }
+
+  /* On screen a code block scrolls sideways. Paper does not scroll, so the
+     nine blocks that overflow would simply lose their right-hand halves. */
+  pre code {
+    white-space: pre-wrap;
+  }
 }

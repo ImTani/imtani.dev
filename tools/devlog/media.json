@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-04T02:12:27.344Z",
+  "generatedAt": "2026-08-15T20:15:31.736Z",
   "entries": {
     "kenney-pixel-platformer-pack": {
       "kind": "image",
@@ -25,8 +25,8 @@
       "width": 1280,
       "height": 756,
       "sourceBytes": 130732,
-      "outputBytes": 93563,
-      "note": "mp4 45232B + webm 35027B + poster 13304B"
+      "outputBytes": 90885,
+      "note": "mp4 45232B + webm 35027B + poster 10626B"
     },
     "smoother-camera": {
       "kind": "video",
@@ -34,8 +34,8 @@
       "width": 1280,
       "height": 756,
       "sourceBytes": 435178,
-      "outputBytes": 146539,
-      "note": "mp4 94397B + webm 41472B + poster 10670B"
+      "outputBytes": 143573,
+      "note": "mp4 94397B + webm 41472B + poster 7704B"
     },
     "placing-tiles-by-hand": {
       "kind": "video",
@@ -43,8 +43,8 @@
       "width": 1280,
       "height": 680,
       "sourceBytes": 975299,
-      "outputBytes": 228891,
-      "note": "mp4 92666B + webm 78327B + poster 57898B"
+      "outputBytes": 212067,
+      "note": "mp4 92666B + webm 78327B + poster 41074B"
     },
     "auto-tiling": {
       "kind": "video",
@@ -52,8 +52,8 @@
       "width": 1280,
       "height": 680,
       "sourceBytes": 1435616,
-      "outputBytes": 248013,
-      "note": "mp4 89720B + webm 115519B + poster 42774B"
+      "outputBytes": 236799,
+      "note": "mp4 89720B + webm 115519B + poster 31560B"
     },
     "parallax-background": {
       "kind": "video",
@@ -61,8 +61,8 @@
       "width": 1280,
       "height": 756,
       "sourceBytes": 1240833,
-      "outputBytes": 204050,
-      "note": "mp4 108116B + webm 76028B + poster 19906B"
+      "outputBytes": 197190,
+      "note": "mp4 108116B + webm 76028B + poster 13046B"
     },
     "a-very-stationary-cloud": {
       "kind": "image",
@@ -97,8 +97,8 @@
       "width": 814,
       "height": 416,
       "sourceBytes": 34510,
-      "outputBytes": 70295,
-      "note": "mp4 46937B + webm 14464B + poster 8894B"
+      "outputBytes": 67309,
+      "note": "mp4 46937B + webm 14464B + poster 5908B"
     },
     "vertex-node": {
       "kind": "image",
@@ -133,8 +133,8 @@
       "width": 1280,
       "height": 854,
       "sourceBytes": 776279,
-      "outputBytes": 93955,
-      "note": "mp4 38142B + webm 31529B + poster 24284B"
+      "outputBytes": 86571,
+      "note": "mp4 38142B + webm 31529B + poster 16900B"
     },
     "wave-intensity-parameter": {
       "kind": "image",
@@ -151,8 +151,8 @@
       "width": 1280,
       "height": 854,
       "sourceBytes": 258714,
-      "outputBytes": 97841,
-      "note": "mp4 40438B + webm 31329B + poster 26074B"
+      "outputBytes": 89769,
+      "note": "mp4 40438B + webm 31329B + poster 18002B"
     },
     "cloud-waving-gently": {
       "kind": "video",
@@ -160,8 +160,8 @@
       "width": 1280,
       "height": 852,
       "sourceBytes": 879407,
-      "outputBytes": 129129,
-      "note": "mp4 56702B + webm 47063B + poster 25364B"
+      "outputBytes": 122199,
+      "note": "mp4 56702B + webm 47063B + poster 18434B"
     },
     "inheritance-and-composition": {
       "kind": "image",
@@ -223,8 +223,8 @@
       "width": 1280,
       "height": 720,
       "sourceBytes": 2271455,
-      "outputBytes": 270169,
-      "note": "mp4 151187B + webm 96532B + poster 22450B"
+      "outputBytes": 262805,
+      "note": "mp4 151187B + webm 96532B + poster 15086B"
     },
     "mind-map-for-items": {
       "kind": "image",
@@ -259,8 +259,8 @@
       "width": 1280,
       "height": 756,
       "sourceBytes": 1313604,
-      "outputBytes": 252650,
-      "note": "mp4 126710B + webm 100192B + poster 25748B"
+      "outputBytes": 243982,
+      "note": "mp4 126710B + webm 100192B + poster 17080B"
     },
     "spikes-scene": {
       "kind": "image",
@@ -277,8 +277,8 @@
       "width": 1280,
       "height": 756,
       "sourceBytes": 1229152,
-      "outputBytes": 392531,
-      "note": "mp4 230198B + webm 137231B + poster 25102B"
+      "outputBytes": 384175,
+      "note": "mp4 230198B + webm 137231B + poster 16746B"
     },
     "holding-throwing-hurt-respawn": {
       "kind": "video",
@@ -286,8 +286,8 @@
       "width": 1280,
       "height": 720,
       "sourceBytes": 4270940,
-      "outputBytes": 892123,
-      "note": "mp4 455831B + webm 411838B + poster 24454B"
+      "outputBytes": 883449,
+      "note": "mp4 455831B + webm 411838B + poster 15780B"
     },
     "newer-look-different-feel": {
       "kind": "video",
@@ -295,8 +295,8 @@
       "width": 1280,
       "height": 756,
       "sourceBytes": 4775501,
-      "outputBytes": 544043,
-      "note": "mp4 373936B + webm 152441B + poster 17666B"
+      "outputBytes": 537275,
+      "note": "mp4 373936B + webm 152441B + poster 10898B"
     },
     "neuron-activation": {
       "kind": "image",
@@ -331,8 +331,8 @@
       "width": 1280,
       "height": 692,
       "sourceBytes": 114976,
-      "outputBytes": 83249,
-      "note": "mp4 31317B + webm 29036B + poster 22896B"
+      "outputBytes": 77195,
+      "note": "mp4 31317B + webm 29036B + poster 16842B"
     }
   }
 }

@@ -186,8 +186,24 @@ function convertVideo(source: string, slug: string): MediaEntry {
   // Frame one, not a frame from the middle: several of these clips start on the
   // state the surrounding prose is describing. This is the only part of a video
   // that a reader with JavaScript disabled ever sees, so it is not throwaway.
+  //
+  // Quality 50, not 80. Fifteen posters are the one thing on this page the
+  // browser fetches eagerly — `poster` has no lazy equivalent — so they were
+  // 363 KB of a 392 KB cold load, all of it for clips five to forty-seven
+  // thousand pixels down. The reference for "good enough" is not the source
+  // GIF, it is the CRF-30 H.264 frame the reader sees a moment after pressing
+  // play: measured against that frame at the width the figure actually renders,
+  // q80 scores SSIM 0.984 and q50 scores 0.972, and side by side at 1:1 the q50
+  // poster is indistinguishable from the q80 one while both are visibly cleaner
+  // than the video. It buys 29 percent of the payload for a still that was
+  // never the limiting factor.
+  //
+  // The width is deliberately not touched. Encoding these at the 864px the
+  // figure renders at would save twice as much and cost SSIM 0.92 on the busy
+  // clips, and it would hand a reader with JavaScript off a 1x image on a 2x
+  // screen — that one is a degraded document rather than a quieter one.
   ffmpeg(['-i', src, '-vf', filter, '-frames:v', '1', '-c:v', 'libwebp', '-lossless', '0',
-    '-quality', '80', '-compression_level', '6', poster]);
+    '-quality', '50', '-compression_level', '6', poster]);
 
   const out = probeSize(mp4);
   return {

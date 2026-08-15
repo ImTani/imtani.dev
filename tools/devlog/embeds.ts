@@ -86,12 +86,65 @@ export const ALT_OVERRIDES: Readonly<Record<string, string>> = {
     'The player walks into the checkpoint flag and it raises; a pink test hazard sits nearby and the key and diamond bob up and down on the wave shader.',
 };
 
-/** Alt text that reads better than what the export put in the alt slot. */
-export const ALT_REWRITES: Readonly<Record<string, string>> = {
-  // The export's alt is an aside about the GIF refusing to centre in Notion,
-  // which tells a screen-reader user nothing about the picture.
-  'sine-cosine-animation1.gif':
-    'A point travelling around a circle, with its height traced out beside it as a sine wave.',
+/**
+ * The three embeds that are not ours, named the same way the local ones are.
+ *
+ * They stay on their own hosts: re-hosting them here would be republishing work
+ * that is not his, and the URL is the attribution. What they cannot do is stay
+ * anonymous — without an intrinsic size the figure has no `--fig-w` to cap it
+ * and a 480px reaction GIF gets blown up to 864px, and without a declared size
+ * the browser reserves no box for it and the page shifts when it lands.
+ *
+ * So each one is measured once, here, and `build.ts` asserts that every remote
+ * `src` in the export has an entry — an unrecognised remote URL is a build
+ * error rather than an unsized image. `build.ts` also checks each `url` is
+ * reachable and still an image, which is how the Steemit mirror below was
+ * caught: it answers 200 with a 67-byte JSON body saying "not found", so
+ * nothing that watches status codes would ever have noticed.
+ *
+ * Keyed by the URL as the export writes it; `url` is what the page publishes.
+ * The two differ for exactly one of them, and that is the point.
+ */
+export interface RemoteEmbed {
+  /** What the page links. Differs from the key when the export's copy is dead. */
+  readonly url: string;
+  /** Intrinsic pixels, measured with ffprobe. */
+  readonly width: number;
+  readonly height: number;
+  /** An animated GIF cannot be paused, so the page has to offer to stop it. */
+  readonly animated: boolean;
+  /** Only where the export's alt slot is unusable. */
+  readonly alt?: string;
+}
+
+export const REMOTE_EMBEDS: Readonly<Record<string, RemoteEmbed>> = {
+  // Steemit's image proxy stopped serving this years ago and answers a JSON
+  // error with a 200. The original it was proxying is still up, so this points
+  // at the source rather than at a mirror of the source.
+  'https://steemitimages.com/0x0/http://weeklycoder.com/wp-content/uploads/2015/07/sine-cosine-animation1.gif':
+    {
+      url: 'https://weeklycoder.com/wp-content/uploads/2015/07/sine-cosine-animation1.gif',
+      width: 430,
+      height: 284,
+      animated: true,
+      // The export's alt is an aside about the GIF refusing to centre in
+      // Notion, which tells a screen-reader user nothing about the picture.
+      alt: 'A point travelling around a circle, with its height traced out beside it as a sine wave.',
+    },
+  'https://media.geeksforgeeks.org/wp-content/uploads/20230828114249/Cartesian-Coordinate-System-3-(1).gif':
+    {
+      url: 'https://media.geeksforgeeks.org/wp-content/uploads/20230828114249/Cartesian-Coordinate-System-3-(1).gif',
+      width: 902,
+      height: 702,
+      animated: true,
+    },
+  'https://media1.giphy.com/media/3oEjI6hkw6nbYNQkz6/giphy.gif?cid=7941fdc60st08kq1i53t52pl71w5cozq3thsyow45u1mv6t2&ep=v1_gifs_search&rid=giphy.gif&ct=g':
+    {
+      url: 'https://media1.giphy.com/media/3oEjI6hkw6nbYNQkz6/giphy.gif?cid=7941fdc60st08kq1i53t52pl71w5cozq3thsyow45u1mv6t2&ep=v1_gifs_search&rid=giphy.gif&ct=g',
+      width: 480,
+      height: 269,
+      animated: true,
+    },
 };
 
 export function isRemote(src: string): boolean {

@@ -11,6 +11,13 @@
     <meta name="description" content="A day-by-day account of building Rise&amp;Shine, a Godot puzzle-platformer, for Learn You A Game Jam 2024 — shaders, entity components, tilemaps and the things that broke. Winner of the Most Educational Devlog Prize." />
     <meta name="author" content="Tanishk Narula" />
     <link rel="canonical" href="https://imtani.dev/writing/rise-and-shine" />
+    <!--
+      The favicon is deferred until the identity exists, so there is no icon to
+      point at and /favicon.ico 404s on every load. An empty data URL is the
+      one way to say "there is no icon" that costs no request; delete this line
+      the day there is a real one.
+    -->
+    <link rel="icon" href="data:," />
     <meta name="theme-color" content="#111316" media="(prefers-color-scheme: dark)" />
     <meta name="theme-color" content="#faf6ee" media="(prefers-color-scheme: light)" />
     <meta property="og:type" content="article" />
@@ -33,6 +40,8 @@
         "description": "A day-by-day account of building Rise&Shine, a Godot puzzle-platformer, for Learn You A Game Jam 2024 — shaders, entity components, tilemaps and the things that broke. Winner of the Most Educational Devlog Prize.",
         "url": "https://imtani.dev/writing/rise-and-shine",
         "mainEntityOfPage": "https://imtani.dev/writing/rise-and-shine",
+        "datePublished": "2024-06-28",
+        "dateModified": "2026-07-21",
         "image": "https://imtani.dev/writing/rise-and-shine/rise-and-shine-cover.webp",
         "author": {
           "@type": "Person",
@@ -80,7 +89,12 @@
   --rule: #e5decd;
   --rule-strong: #cec5b0;
   --sunk: #f3eede;
-  --underline: #dda694;
+  /* The link underline is the only thing telling fifty-eight outbound links
+     apart from the prose around them, since link text is `inherit`. The old
+     value measured 1.96:1 on paper — under half of what technique G183 asks of
+     a non-text distinction, and close enough to invisible on a dim screen that
+     the page read as though it had no links in it. */
+  --underline: #c07b62;
 
   --serif: 'Sitka Text', Charter, 'Iowan Old Style', Constantia, Georgia, serif;
   --mono: ui-monospace, 'Cascadia Mono', 'SF Mono', 'Segoe UI Mono', Menlo, Consolas, monospace;
@@ -123,7 +137,9 @@
     --rule: #262a2f;
     --rule-strong: #363c43;
     --sunk: #171a1e;
-    --underline: #6f4034;
+    /* 3.55:1 against the dark paper, where the old value was 2.18:1. Still far
+       quieter than the accent a hovered link takes, which is 6.31:1. */
+    --underline: #9a5c4a;
   }
 }
 
@@ -148,7 +164,9 @@ body {
   background: var(--paper);
   color: var(--ink);
   font: 400 clamp(1rem, 0.3vw + 0.95rem, 1.125rem) / 1.7 var(--serif);
-  font-variant-numeric: oldstyle-num;
+  /* `oldstyle-num` — the singular — is not a keyword, so this declaration was
+     dropped and the old-style figures it asks for were never rendering. */
+  font-variant-numeric: oldstyle-nums;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -234,10 +252,19 @@ a:focus-visible {
  *
  *   54rem column + 2 x (2.5rem gap + 12.5rem rail) + 2 x 3rem page padding
  *   = 90rem = 1440px
+ *   + 1rem for the scrollbar
+ *   = 91rem = 1456px
+ *
+ * The scrollbar term is not slack. A media query measures the viewport and
+ * layout gets the viewport minus the classic scrollbar, so at exactly 1440 the
+ * rail was laid out in 1424px of room and took its last 16px out of the page's
+ * right padding — 48px of air became 40.5. One rem covers the widest scrollbar
+ * Windows draws; where the platform overlays its scrollbar instead, the term
+ * costs 16px of extra air on the right and nothing else.
  *
  * Under that, the spine. It is one number: lower `--rail` to bring the rail
  * back at narrower widths, at the cost of the longest entries wrapping. */
-@media (min-width: 90rem) {
+@media (min-width: 91rem) {
   /* `display: contents` promotes the rail and the article into the page grid
      so both can address its named columns. The wrapper is a plain div, so it
      carries no role for this to dissolve. */
@@ -271,7 +298,18 @@ a:focus-visible {
     top: 3rem;
     max-height: calc(100vh - 6rem);
     overflow-y: auto;
-    overscroll-behavior: contain;
+    /* `overflow-y: auto` forces `overflow-x` to clip, and the links sit flush
+       with the rail's content box, so a focus ring drawn 3px outside a link
+       came out as two horizontal bars with no ends. Five pixels of inside air
+       is exactly what the ring needs — 3px of offset plus its own 2px.
+       Padding rather than a wider rail, because the rail's own box is what the
+       breakpoint above is derived from and widening it would push it back into
+       the page's right padding. The price is 190px of text instead of 200,
+       which takes the entries that wrap to two lines from four to six of
+       forty-one. `overflow-clip-margin` would have cost nothing, but it only
+       applies to `overflow: clip`, and `clip` beside a scrolling axis computes
+       to `hidden` — checked, not assumed. */
+    padding-inline: 5px;
   }
 }
 
@@ -341,14 +379,41 @@ a:focus-visible {
   letter-spacing: 0;
 }
 
+/* The row gap is a target-size rule, not a rhythm one. These wrap on a narrow
+   phone, and at 0.35rem the centres of two stacked 15px links sat 20.6px apart
+   — under the 24px WCAG 2.5.8 allows an undersized target to earn back through
+   spacing. 0.75rem puts them 27px apart. Nothing changes above 360px, where
+   they have never wrapped. */
 .masthead-links {
   list-style: none;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.35rem 1.5rem;
+  gap: 0.75rem 1.5rem;
   margin: 0.9rem 0 0;
   padding: 0 0 2.5rem;
   font: 400 0.8rem var(--mono);
+}
+
+/* One of the row of things you can do here, and it reads as one. A button is
+   what it has to be — it acts on this page rather than going anywhere — but
+   dressing it as a button would put the only box on a page that has none. */
+.motion-button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--underline);
+  text-underline-offset: 0.18em;
+}
+
+.motion-button:hover,
+.motion-button:focus-visible {
+  color: var(--accent);
+  text-decoration-color: currentColor;
 }
 
 /* ------------------------------------------------------------------ toc --- */
@@ -405,7 +470,7 @@ a:focus-visible {
 /* Narrow screens get the spine only — nine days and an epilogue, laid out as a
    row. The full forty-two-entry outline is a wall on a phone, and the sections
    are two swipes apart once you are on the right day anyway. */
-@media (max-width: 89.99rem) {
+@media (max-width: 90.99rem) {
   .toc {
     max-width: var(--wide);
     margin: 0 0 3.5rem;
@@ -583,8 +648,12 @@ code {
   overflow-wrap: break-word;
 }
 
+/* Block margins only, for the reason `.fig` gives below: an `auto` inline
+   margin outranks the grid's `justify-self: start`. It happens to be inert
+   here, because `.prose > pre` fills its track exactly — but a rule that is
+   only correct by accident is one somebody has to work out again later. */
 pre {
-  margin: 2.25rem auto;
+  margin: 2.25rem 0;
   padding: 1.15rem 1.3rem;
   background: var(--sunk);
   border: 1px solid var(--rule);
@@ -667,6 +736,26 @@ pre code {
   cursor: pointer;
 }
 
+/* What is left of a remote animated GIF once the reader has asked the page to
+   hold still. It keeps the figure's box — the aspect ratio is set from the
+   image's own width and height attributes — so stopping the motion does not
+   move the paragraph anybody was reading. Same sunk panel and hairline as a
+   code block, because it is the same kind of hole in the page. */
+.motion-stub {
+  display: block;
+  width: 100%;
+  background: var(--sunk);
+  border: 1px solid var(--rule);
+  color: var(--muted);
+  font: 400 0.78rem var(--mono);
+  cursor: pointer;
+}
+
+.motion-stub:hover,
+.motion-stub:focus-visible {
+  color: var(--accent);
+}
+
 /* ------------------------------------------------------------ colophon --- */
 
 .colophon {
@@ -681,6 +770,79 @@ pre code {
 .colophon p {
   margin: 0 0 0.7em;
   max-width: 46ch;
+}
+
+/* ---------------------------------------------------------------- print --- */
+
+/* This is a twenty-seven minute article that won a prize for being educational,
+ * which is to say it is a thing people print and mark up. It printed badly, and
+ * one of the reasons was not cosmetic: a browser carries the reader's colour
+ * scheme into the print job, backgrounds are not printed, and so a reader in
+ * dark mode got `#e9e6e1` text on white paper — a page that came out blank.
+ *
+ * So the tokens are restated for ink on paper, and the rest is the handful of
+ * things paper needs and a screen does not: no navigation, no controls, code
+ * that wraps instead of running off the edge of the sheet, and figures and
+ * headings that do not straddle a page break. */
+@media print {
+  :root {
+    color-scheme: light;
+
+    --paper: #fff;
+    --ink: #111111;
+    --muted: #444444;
+    --accent: #8f3521;
+    --rule: #bbbbbb;
+    --rule-strong: #888888;
+    --sunk: #f4f4f4;
+    --underline: #888888;
+  }
+
+  .page {
+    padding-inline: 0;
+    padding-bottom: 0;
+  }
+
+  .masthead {
+    padding-top: 0;
+  }
+
+  /* The rail is navigation and the button acts on a document that has stopped
+     being interactive. The other masthead links are references, so they stay
+     and say where they went. */
+  .skip,
+  .toc,
+  .motion-button {
+    display: none;
+  }
+
+  .masthead-links a::after {
+    content: ' ' attr(href);
+    color: var(--muted);
+  }
+
+  .prose > p {
+    orphans: 3;
+    widows: 3;
+  }
+
+  .prose > h1,
+  .prose > h2,
+  .prose > h3 {
+    break-after: avoid;
+  }
+
+  .prose > figure,
+  .prose > pre,
+  .note {
+    break-inside: avoid;
+  }
+
+  /* On screen a code block scrolls sideways. Paper does not scroll, so the
+     nine blocks that overflow would simply lose their right-hand halves. */
+  pre code {
+    white-space: pre-wrap;
+  }
 }
     </style>
   </head>
@@ -699,10 +861,20 @@ pre code {
           Most Educational Devlog Prize<br />
           <span class="award-where"><a href="https://itch.io/jam/learn-you-a-game-jam-2024">Learn You A Game Jam 2024</a></span>
         </p>
+        <!--
+          The pause control ships hidden and clips.js reveals it, because it is
+          only true when clips.js is running. With JavaScript off, or under
+          reduced motion, nothing starts by itself and every clip already has
+          its own controls — a button offering to stop motion that is not
+          happening would be the page lying about itself.
+        -->
         <ul class="masthead-links">
           <li><a href="https://github.com/ImTani/LYAGJ2024">source code</a></li>
           <li><a href="https://infinitani.itch.io/rise-and-shine">play Rise&amp;Shine</a></li>
           <li><a href="#article">start reading</a></li>
+          <li hidden>
+            <button class="motion-button" type="button" data-motion-toggle>Pause the motion</button>
+          </li>
         </ul>
       </header>
 
@@ -809,7 +981,15 @@ pre code {
 </li></ol>
         </nav>
 
-        <article class="prose" id="article">
+        <!--
+          A role rather than a main element: the landmark set was banner,
+          navigation and contentinfo with nothing in the middle, and at the wide
+          breakpoint the layout wrapper dissolves into the page grid with
+          display:contents, so a second wrapper here would be another element
+          needing grid treatment to sit exactly where this one already sits.
+          The role is the same landmark for no layout at all.
+        -->
+        <article class="prose" id="article" role="main">
 <p class="lede">This devlog records and expands upon my experience of making the game <strong>Rise&amp;Shine</strong> for <a href="https://discord.gg/vn6WcESkPq">The Captain Coder</a>’s <a href="https://itch.io/jam/learn-you-a-game-jam-2024">Learn You A Game Jam 2024</a>.</p>
 <h3 id="before-you-read">Before You Read</h3>
 <p>The game is open-source! You can check the source-code out in <a href="https://github.com/ImTani/LYAGJ2024">this repository</a>.</p>
@@ -826,7 +1006,7 @@ pre code {
 <h3 id="assets">Assets</h3>
 <p>After this, I head out to <a href="https://kenney.nl">Kenney’s</a> to look for assets for the game. I tried using the <a href="https://kenney.nl/assets/1-bit-platformer-pack">1-Bit Pack</a> for a short while but eventually decided to switch to the <a href="https://kenney.nl/assets/pixel-platformer">Pixel Platformer 2D Asset Pack</a>. I spent a lot of time deliberating over the feel and style of the game, and after much consideration, this was the look I went with.</p>
 <figure class="fig" style="--fig-w:918px">
-  <img src="/writing/rise-and-shine/kenney-pixel-platformer-pack.webp" alt="Kenney’s Pixel Platformer Pack Preview" width="918" height="515" loading="lazy" decoding="async" />
+  <img src="/writing/rise-and-shine/kenney-pixel-platformer-pack.webp" alt="" width="918" height="515" loading="lazy" decoding="async" />
   <figcaption>Kenney’s Pixel Platformer Pack Preview</figcaption>
 </figure>
 <p>I added a <code>Tilemap</code> to the scene and configured it's <code>Tileset</code> to match my assets. You can check out how you can do that <a href="https://docs.godotengine.org/en/stable/tutorials/2d/using_tilemaps.html">here</a>. I added a basic Physics Layer to the grass tiles and placed them into the scene. After that, I made the Player scene using Godot’s built-in <code>CharacterBody2D</code> node. As we are only setting things up for now, I just went with the default script template that comes with Godot. As for the camera, I want to follow <em>behind</em> the player with a slight delay, <a href="https://simple.wikipedia.org/wiki/Damping">damping</a>, as one may call it.</p>
@@ -838,14 +1018,13 @@ pre code {
 <h3 id="interpolation">Interpolation</h3>
 <p>For my camera management, I decided to use the aforementioned PhantomCamera plugin. Godot’s <code>CharacterBody2D</code> node inherits from <code>PhysicsBody2D</code> and thus, is handled by Godot’s physics engine. One of the problems with this is that Godot doesn’t have Physics Interpolation in the latest release available at the time of writing. Interpolation is <strong>a technique to infer information from a discrete and limited set of data.</strong> In Layman’s terms, it means to approximate data from data that we already have. There’s a concept of <a href="https://en.wikipedia.org/wiki/Inbetweening"><strong>Tweening</strong></a> in animation, you can think of it as that, but for physics.</p>
 <figure class="fig" style="--fig-w:330px">
-  <img src="/writing/rise-and-shine/smooth-interpolation-from-data-points.webp" alt="Smooth Interpolation (Blue) from Data Points (Red)" width="330" height="264" loading="lazy" decoding="async" />
+  <img src="/writing/rise-and-shine/smooth-interpolation-from-data-points.webp" alt="" width="330" height="264" loading="lazy" decoding="async" />
   <figcaption>Smooth Interpolation (Blue) from Data Points (Red)</figcaption>
 </figure>
 <p>This essentially would make Godot’s physics be <em>smoother.</em>  Why this matters to me, is because PhantomCamera doesn’t handle <code>PhysicsBody2D</code> very well due to the lack of this feature, causing my camera to be jittery.</p>
 <figure class="fig" style="--fig-w:1280px">
   <video class="clip" data-clip loop muted playsinline controls preload="none"
-         poster="/writing/rise-and-shine/jittery-camera.webp" width="1280" height="756"
-         aria-label="Character moving around with a jittery camera.">
+         poster="/writing/rise-and-shine/jittery-camera.webp" width="1280" height="756">
     <source src="/writing/rise-and-shine/jittery-camera.webm" type="video/webm" />
     <source src="/writing/rise-and-shine/jittery-camera.mp4" type="video/mp4" />
   </video>
@@ -854,8 +1033,7 @@ pre code {
 <p>And for this exact reason I decided to port over my project to Godot’s latest beta release at the time, <a href="https://godotengine.org/download/archive/4.3-beta1/">Godot 4.3 Beta 1</a>, which fortunately adds Physics Interpolation to the engine. Now our camera works fine!</p>
 <figure class="fig" style="--fig-w:1280px">
   <video class="clip" data-clip loop muted playsinline controls preload="none"
-         poster="/writing/rise-and-shine/smoother-camera.webp" width="1280" height="756"
-         aria-label="Character moving around with a smoother camera.">
+         poster="/writing/rise-and-shine/smoother-camera.webp" width="1280" height="756">
     <source src="/writing/rise-and-shine/smoother-camera.webm" type="video/webm" />
     <source src="/writing/rise-and-shine/smoother-camera.mp4" type="video/mp4" />
   </video>
@@ -866,8 +1044,7 @@ pre code {
 <p>I was satisfied with the camera for the time being and moved on to setting up my Tilemap. I should also state here that this is my first time working with a tile-map based project seriously, so this is a new experience. Until now, I’ve been painting the tiles myself, as in I manually put specific tiles into the world.</p>
 <figure class="fig" style="--fig-w:1280px">
   <video class="clip" data-clip loop muted playsinline controls preload="none"
-         poster="/writing/rise-and-shine/placing-tiles-by-hand.webp" width="1280" height="680"
-         aria-label="Placing tiles into the Tilemap manually">
+         poster="/writing/rise-and-shine/placing-tiles-by-hand.webp" width="1280" height="680">
     <source src="/writing/rise-and-shine/placing-tiles-by-hand.webm" type="video/webm" />
     <source src="/writing/rise-and-shine/placing-tiles-by-hand.mp4" type="video/mp4" />
   </video>
@@ -876,8 +1053,7 @@ pre code {
 <p>This is far too cumbersome and time consuming, and if there’s one thing you should know about me, is that I’m a very <s>lazy</s> efficient individual. This is why I decided to tackle the challenge of setting up <a href="https://docs.godotengine.org/en/stable/tutorials/2d/using_tilesets.html#doc-using-tilesets-creating-terrain-sets"><em>auto-tiling</em></a> for my Tilemap, or as Godot calls it, using Terrains<a href="https://docs.godotengine.org/en/stable/tutorials/2d/using_tilemaps.html#handling-tile-connections-automatically-using-terrains">.</a> Auto-tiling detects the placement of a tile—whether it's a corner, far left, top, or any other position—and automatically selects and places the appropriate tile from the Tilemap. Now, making levels is very straightforward.</p>
 <figure class="fig" style="--fig-w:1280px">
   <video class="clip" data-clip loop muted playsinline controls preload="none"
-         poster="/writing/rise-and-shine/auto-tiling.webp" width="1280" height="680"
-         aria-label="Auto-tiling does the work for me and I can be efficient.">
+         poster="/writing/rise-and-shine/auto-tiling.webp" width="1280" height="680">
     <source src="/writing/rise-and-shine/auto-tiling.webm" type="video/webm" />
     <source src="/writing/rise-and-shine/auto-tiling.mp4" type="video/mp4" />
   </video>
@@ -887,8 +1063,7 @@ pre code {
 <p>After this, I started iterating on my background, trying to go for a simple <a href="https://en.wikipedia.org/wiki/Parallax_scrolling">parallax effect</a>. I used the assets from the pack and also made my own. This is very easy to implement in Godot due to the built-in <code>Parallax2D</code> nodes. I just had to put my backgrounds on different layers and voila! The illusion of depth! I also made the separated clouds have a <code>x_scroll</code>,  meaning they will automatically move to the left ever so slightly every frame, making it look like they’re moving. Did I mention that the layers are also repeated? This makes it so that we never run out of background, and I can be— ahem, <em>efficient</em>, by not having to manually place long strips of background tiles. And all of this without writing a single bit of code too, Godot makes it really easy for you to achieve some things.</p>
 <figure class="fig" style="--fig-w:1280px">
   <video class="clip" data-clip loop muted playsinline controls preload="none"
-         poster="/writing/rise-and-shine/parallax-background.webp" width="1280" height="756"
-         aria-label="Parallax Background to feign the illusion of depth">
+         poster="/writing/rise-and-shine/parallax-background.webp" width="1280" height="756">
     <source src="/writing/rise-and-shine/parallax-background.webm" type="video/webm" />
     <source src="/writing/rise-and-shine/parallax-background.mp4" type="video/mp4" />
   </video>
@@ -900,33 +1075,32 @@ pre code {
 <p>I woke up, drank my afternoon coffee, and went straight back to my computer. Today’s agenda: <strong><a href="https://docs.godotengine.org/en/stable/tutorials/shaders/introduction_to_shaders.html">Shaders</a>.</strong> Shaders are a special kind of program that run on your GPU, which can handle thousands of tasks at the same time, also known as running in <em>parallel,</em> which is ideal for shaders that need to run for every pixel (or less) on your screen at the same time. You can find some awesome shaders for Godot at <a href="https://godotshaders.com">Godot Shaders</a>.</p>
 <p>See, shaders are something I have never dealt with before, and I am quite aware of the wonderful and absolutely amazing things that are made possible by them. So I decided to try my hands at it too. I wanted to start simple, my task was to make this very stationary cloud wave up and down.</p>
 <figure class="fig" style="--fig-w:458px">
-  <img src="/writing/rise-and-shine/a-very-stationary-cloud.webp" alt="A  very stationary cloud" width="458" height="212" loading="lazy" decoding="async" />
+  <img src="/writing/rise-and-shine/a-very-stationary-cloud.webp" alt="" width="458" height="212" loading="lazy" decoding="async" />
   <figcaption>A  very stationary cloud</figcaption>
 </figure>
 <p>This could be very easily achieved using an <code>AnimationPlayer</code> to animate it, but shaders sound fun, (also they’re much more efficient to calculate and execute for the engine than animations), so we’ll go with that. In Godot, you can write shaders through code using Godot’s Shading Language, but I decided to use <a href="https://docs.godotengine.org/en/stable/tutorials/shaders/visual_shaders.html">VisualShaders</a>. Think visual scripting, but for shaders. (duh.)</p>
 <p>Shaders have many capabilities but are primarily divided into two main categories: Vertex and Fragment. Vertex shaders, as the name suggests, manipulate the vertices and their positions within a graphic element (mesh). Fragment shaders, on the other hand, operate on every pixel of the graphic, making them useful for manipulating colors and similar effects. Since I want to make the cloud wave up and down, I need to adjust the position of the vertices accordingly, so I will use a Vertex shader.</p>
 <p>As I create (and connect to my cloud) a new <code>VisualShader</code> resource in the project, I am greeted with this slightly scary interface:</p>
 <figure class="fig" style="--fig-w:1065px">
-  <img src="/writing/rise-and-shine/godot-visual-shader-editor.webp" alt="Godot’s Visual Shader Editor" width="1065" height="904" loading="lazy" decoding="async" />
+  <img src="/writing/rise-and-shine/godot-visual-shader-editor.webp" alt="" width="1065" height="904" loading="lazy" decoding="async" />
   <figcaption>Godot’s Visual Shader Editor</figcaption>
 </figure>
 <h3 id="the-sine-function">The Sine Function</h3>
 <p>There’s a lot of options here but we only want to mess with one of those, the <strong>Vertex</strong>. Before I start working on the actual shader, let me break down how I plan for it to work. I wish to utilize a <a href="https://www.cuemath.com/trigonometry/sine-function/">Sine</a> function to generate the motion. Sine waves are cyclic in nature, and are also famously utilized in many other things in game-dev such as bobbing animations or <a href="https://youtu.be/PH9q0HNBjT4?si=gQ7xk1gmE392K_o2">rendering oceans</a> (yes.). Learn your trigonometry! This is where it helps you!</p>
-<figure class="fig fig-remote">
-  <img src="https://steemitimages.com/0x0/http://weeklycoder.com/wp-content/uploads/2015/07/sine-cosine-animation1.gif" alt="A point travelling around a circle, with its height traced out beside it as a sine wave." loading="lazy" decoding="async" referrerpolicy="no-referrer" />
+<figure class="fig fig-remote" style="--fig-w:430px">
+  <img src="https://weeklycoder.com/wp-content/uploads/2015/07/sine-cosine-animation1.gif" alt="A point travelling around a circle, with its height traced out beside it as a sine wave." width="430" height="284" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-motion />
   <figcaption>Sin Wave  (This GIF doesn’t like to be centered. . . )</figcaption>
 </figure>
 <p>As the sine wave cycles between two points infinitely, it is the perfect choice for our wave shader. This is how I’ve implemented the shader:</p>
 <p>We take in the <code>time</code> input, think of it as a constant stream of input to push into our sine wave, the fuel that keeps it cycling. I multiply the <code>time</code> with a <code>FloatParameter</code> which I call <code>wave_speed</code>. You can think of  <code>Parameters</code> as shader variables, because that’s what they are.  I can edit these in the inspector later on without having to mess with the shader again. The <code>wave_speed</code> does exactly what you’d expect it to, it handles the frequency of the sine function, allowing me to manipulate how long a cycle lasts, and consequently, how fast our wave oscillates.</p>
 <figure class="fig" style="--fig-w:711px">
-  <img src="/writing/rise-and-shine/multiplying-time-by-wave-speed.webp" alt="Multiplying  and our " width="711" height="458" loading="lazy" decoding="async" />
+  <img src="/writing/rise-and-shine/multiplying-time-by-wave-speed.webp" alt="" width="711" height="458" loading="lazy" decoding="async" />
   <figcaption>Multiplying <code>time</code> and our <code>FloatParameter</code></figcaption>
 </figure>
 <p>After connecting the output from the <code>Multiply</code> node to a <code>Sin</code> function node (<em>Sine</em> is also written as <em>Sin</em>, think Sin, Cos and Tan.), we can see that it is working as intended. You can press the eye icon next to the output of most nodes to have Godot visualize them, as I am doing here. Did I mention that I’m not following any tutorials for this? They are definitely a good way to learn but sometimes, you have to explore and have some fun! Unguided learning is also very good. I’d also encourage you to mess around with some nodes in the Visual Shaders! And if you want to learn, <a href="https://youtu.be/nyFzPaWAzeQ?si=g0DH0pcvWi86Nkad">this tutorial</a> by Godotneers will introduce you to most things that you’d want to do.</p>
 <figure class="fig" style="--fig-w:814px">
   <video class="clip" data-clip loop muted playsinline controls preload="none"
-         poster="/writing/rise-and-shine/working-sin-function.webp" width="814" height="416"
-         aria-label="Working Sin function">
+         poster="/writing/rise-and-shine/working-sin-function.webp" width="814" height="416">
     <source src="/writing/rise-and-shine/working-sin-function.webm" type="video/webm" />
     <source src="/writing/rise-and-shine/working-sin-function.mp4" type="video/mp4" />
   </video>
@@ -934,18 +1108,18 @@ pre code {
 </figure>
 <p>Now, lets try to get vertices to move. I snooped around the nodes and found this little thing:</p>
 <figure class="fig" style="--fig-w:507px">
-  <img src="/writing/rise-and-shine/vertex-node.webp" alt="Vertex Node" width="507" height="259" loading="lazy" decoding="async" />
+  <img src="/writing/rise-and-shine/vertex-node.webp" alt="" width="507" height="259" loading="lazy" decoding="async" />
   <figcaption>Vertex Node</figcaption>
 </figure>
 <p>As you may notice, This node is an <code>Input</code> node, if you remember from above, our <code>Time</code> node was also an <code>Input</code> node . These nodes allow you to input data from the engine into your shaders, such as time elapsed, or the current position of every vertex. You might also notice that this node has <strong>3</strong> outputs, instead of the usual <strong>1,</strong> this is because up until now we had been working with <strong><a href="https://docs.godotengine.org/en/stable/classes/class_float.html">Float</a></strong> numbers. This is a datatype that handles decimal numbers such as 0.001 or 1.343, but the vertex node returns <em>positions,</em> or specifically, <em>Vector2</em> data which will be in 2 axes, now if you know anything about co-ordinate geometry, you’d have an easier time understanding this next section, but I’ll try to make it as simple as I can for you. Those who already understand it may skip it if they wish to do so.</p>
 <h3 id="the-2d-coordinate-system">The 2D Coordinate System</h3>
 <figure class="fig" style="--fig-w:985px">
-  <img src="/writing/rise-and-shine/cartesian-plane.webp" alt="Coordinate Grid (Cartesian Plane)" width="985" height="817" loading="lazy" decoding="async" />
+  <img src="/writing/rise-and-shine/cartesian-plane.webp" alt="" width="985" height="817" loading="lazy" decoding="async" />
   <figcaption>Coordinate Grid (Cartesian Plane)</figcaption>
 </figure>
 <p>Think of 2D space as a grid. Let's call a random point the <strong>Origin</strong> and assume that it is where the world starts from. Now, let's assign all <strong>up and down</strong> (vertical) movement on this grid to the <strong>Y-Axis</strong>. When you move up, the Y-coordinate will <em>increase</em>, and when you move down, it will <em>decrease</em>. Similarly, we can assign all <strong>left and right</strong> (horizontal) movement to the <strong>X-Axis</strong>. When you move to the right, the X-coordinate will <em>increase</em>, and when you move to the left, it will <em>decrease</em>.</p>
-<figure class="fig fig-remote">
-  <img src="https://media.geeksforgeeks.org/wp-content/uploads/20230828114249/Cartesian-Coordinate-System-3-(1).gif" alt="Movement on the co-ordinate grid" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
+<figure class="fig fig-remote" style="--fig-w:902px">
+  <img src="https://media.geeksforgeeks.org/wp-content/uploads/20230828114249/Cartesian-Coordinate-System-3-(1).gif" alt="" width="902" height="702" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-motion />
   <figcaption>Movement on the co-ordinate grid</figcaption>
 </figure>
 <p>Now, let's assign a value to each unit on the grid. Let's say that one box on the grid is 1 <em>unit</em> tall and 1 <em>unit</em> wide. So, when you move left one time, you’re moving one unit negative on the X-Axis. We can use these numbers to describe our position on the grid. If you are on the 4th unit on the X-Axis and the negative 8th unit on the Y-Axis, you could say it like that, or you could use a simple notation: you are at point (4, -8) on the grid. This is called a <strong>coordinate</strong>, which is where the name of the system comes from. Another example is the point (4, 3) that you see in the gif above. Anywhere you work with computer graphics, this system will undeniably show up, as is the case for our shader.</p>
@@ -959,7 +1133,7 @@ pre code {
 <p>With that out of the way, let’s get back to Vectors. I won’t explain Vector math to you here, but you can check out this page for some basics. But we are not talking about Vectors here, we are talking about Godot’s <a href="https://docs.godotengine.org/en/stable/classes/class_vector2.html">Vector2</a>. The <code>Vector2</code> data type is a 2-element structure that can be used to represent 2D coordinates or any other pair of numeric values. Let’s say, velocity, or even <em>vertex positions.</em></p>
 <p>See where I’m getting at?</p>
 <figure class="fig" style="--fig-w:981px">
-  <img src="/writing/rise-and-shine/making-a-new-vector2.webp" alt="Making a new Vector2" width="981" height="317" loading="lazy" decoding="async" />
+  <img src="/writing/rise-and-shine/making-a-new-vector2.webp" alt="" width="981" height="317" loading="lazy" decoding="async" />
   <figcaption>Making a new Vector2</figcaption>
 </figure>
 <p>In this snippet, you can see that we’re getting the <code>vertex</code> input to retrieve all vertices and performing a <em>vector operation</em> on them, which is math, but with vectors. Here, we add two vectors together: one is the vertex positions, and the other is currently (0,0), so we’re effectively adding nothing.</p>
@@ -968,8 +1142,7 @@ pre code {
 <p>Now we can just plug the <code>Sin</code> wave into the vector that we are adding, where we were previously adding (0,0). And. . .</p>
 <figure class="fig" style="--fig-w:1280px">
   <video class="clip" data-clip loop muted playsinline controls preload="none"
-         poster="/writing/rise-and-shine/slightly-not-stationary-cloud.webp" width="1280" height="854"
-         aria-label="A slightly not-stationary cloud">
+         poster="/writing/rise-and-shine/slightly-not-stationary-cloud.webp" width="1280" height="854">
     <source src="/writing/rise-and-shine/slightly-not-stationary-cloud.webm" type="video/webm" />
     <source src="/writing/rise-and-shine/slightly-not-stationary-cloud.mp4" type="video/mp4" />
   </video>
@@ -977,14 +1150,13 @@ pre code {
 </figure>
 <p>It. . .  <em>seems</em> to work? Can you see it? The really subtle movement? Let’s do something about it! I used the trust <code>FloatParameter</code> and <code>Multiply</code> node combination to add another variable to the shader, the wave <em>intensity.</em> This controls how far off the cloud goes up and down.</p>
 <figure class="fig" style="--fig-w:559px">
-  <img src="/writing/rise-and-shine/wave-intensity-parameter.webp" alt="Wave Intensity Parameter" width="559" height="434" loading="lazy" decoding="async" />
+  <img src="/writing/rise-and-shine/wave-intensity-parameter.webp" alt="" width="559" height="434" loading="lazy" decoding="async" />
   <figcaption>Wave Intensity Parameter</figcaption>
 </figure>
 <p>Now changing these parameters to be higher, and:</p>
 <figure class="fig" style="--fig-w:1280px">
   <video class="clip" data-clip loop muted playsinline controls preload="none"
-         poster="/writing/rise-and-shine/cloud-having-violent-seizures.webp" width="1280" height="854"
-         aria-label="A cloud having violent seizures">
+         poster="/writing/rise-and-shine/cloud-having-violent-seizures.webp" width="1280" height="854">
     <source src="/writing/rise-and-shine/cloud-having-violent-seizures.webm" type="video/webm" />
     <source src="/writing/rise-and-shine/cloud-having-violent-seizures.mp4" type="video/mp4" />
   </video>
@@ -993,15 +1165,14 @@ pre code {
 <p>Let’s. . . dial it down a bit. . .</p>
 <figure class="fig" style="--fig-w:1280px">
   <video class="clip" data-clip loop muted playsinline controls preload="none"
-         poster="/writing/rise-and-shine/cloud-waving-gently.webp" width="1280" height="852"
-         aria-label="A cloud waving up and down gently">
+         poster="/writing/rise-and-shine/cloud-waving-gently.webp" width="1280" height="852">
     <source src="/writing/rise-and-shine/cloud-waving-gently.webm" type="video/webm" />
     <source src="/writing/rise-and-shine/cloud-waving-gently.mp4" type="video/mp4" />
   </video>
   <figcaption>A cloud waving up and down <em>gently</em></figcaption>
 </figure>
-<figure class="fig fig-remote">
-  <img src="https://media1.giphy.com/media/3oEjI6hkw6nbYNQkz6/giphy.gif?cid=7941fdc60st08kq1i53t52pl71w5cozq3thsyow45u1mv6t2&amp;ep=v1_gifs_search&amp;rid=giphy.gif&amp;ct=g" alt="IT’S ALIVE!" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
+<figure class="fig fig-remote" style="--fig-w:480px">
+  <img src="https://media1.giphy.com/media/3oEjI6hkw6nbYNQkz6/giphy.gif?cid=7941fdc60st08kq1i53t52pl71w5cozq3thsyow45u1mv6t2&amp;ep=v1_gifs_search&amp;rid=giphy.gif&amp;ct=g" alt="" width="480" height="269" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-motion />
   <figcaption>IT’S ALIVE!</figcaption>
 </figure>
 <p>It works! Yay! Although I’m currently using the shader to make the clouds wave up and down, this can be used to make literally anything wave up and down. A great tool in my arsenal going forward!</p>
@@ -1012,19 +1183,19 @@ pre code {
 <h3 id="inheritance-and-composition">Inheritance and Composition</h3>
 <p>In the world of computer programming, there exist many <a href="https://simple.wikipedia.org/wiki/Programming_paradigm">paradigms</a>. One of the most commonly used paradigms for game development is <a href="https://simple.wikipedia.org/wiki/Object-oriented_programming">Object Oriented Programming (OOP).</a> As the name would suggest, this type of programming is oriented around objects. Next is- just kidding. OOP is a type of programming that favors data <em>objects</em> over pure logic and functions. An object can be any sort of data structure that has its own unique functions and can interact with other elements in the program. This video is an excellent resource for understanding OOP. I won’t explain how OOP works because it is far too massive a topic for little tiny me, but I <em>will</em> tell you about Inheritance and Composition.</p>
 <figure class="fig" style="--fig-w:1440px">
-  <img src="/writing/rise-and-shine/inheritance-and-composition.webp" alt="Inheritance and Composition" width="1440" height="771" loading="lazy" decoding="async" />
+  <img src="/writing/rise-and-shine/inheritance-and-composition.webp" alt="" width="1440" height="771" loading="lazy" decoding="async" />
   <figcaption>Inheritance and Composition</figcaption>
 </figure>
 <p>These words may sound alien at first, but at their cores, they are very simple concepts.</p>
 <p>Imagine you have a garage full of different vehicles. Each vehicle serves a specific purpose—like a car for everyday commuting or a motorcycle for zipping through traffic. In programming, Inheritance and Composition are akin to different approaches to using and combining these vehicles.</p>
 <p><strong><a href="https://simple.wikipedia.org/wiki/Inheritance_(object-oriented_programming)">Inheritance</a></strong> is like starting with a basic vehicle that does what all vehicles do—moves you from point A to point B. From this basic vehicle, you can create specialized versions that add extra features or abilities, like turning your basic car into a sports car or a utility truck. In programming terms, this means creating new types of vehicles (or classes) that build upon existing ones, inheriting their fundamental capabilities and behaviors.</p>
 <figure class="fig" style="--fig-w:1400px">
-  <img src="/writing/rise-and-shine/inheritance-car-and-motorcycle.webp" alt="Inheritance. A Car and a Motorcycle both inherit from Vehicle" width="1400" height="681" loading="lazy" decoding="async" />
+  <img src="/writing/rise-and-shine/inheritance-car-and-motorcycle.webp" alt="" width="1400" height="681" loading="lazy" decoding="async" />
   <figcaption>Inheritance. A Car and a Motorcycle both inherit from Vehicle</figcaption>
 </figure>
 <p><strong><a href="https://en.wikipedia.org/wiki/Object_composition">Composition</a></strong> on the other hand, is about assembling a vehicle with specific features from various parts. Just like assembling a custom toolkit, you might combine the speed of a motorcycle, the cargo space of a truck, and the fuel efficiency of a hybrid car to create a new vehicle tailored exactly to your needs.</p>
 <figure class="fig" style="--fig-w:1440px">
-  <img src="/writing/rise-and-shine/composition-book-and-pages.webp" alt="Composition. A Book is made up of components such as Pages." width="1440" height="635" loading="lazy" decoding="async" />
+  <img src="/writing/rise-and-shine/composition-book-and-pages.webp" alt="" width="1440" height="635" loading="lazy" decoding="async" />
   <figcaption>Composition. A Book is made up of components such as Pages.</figcaption>
 </figure>
 <p>Inheritance allows you to build upon existing vehicle designs, creating specialized versions that extend or modify their capabilities. Meanwhile, Composition lets you combine different vehicle features to create something entirely new and unique. Both approaches are powerful ways to organize and reuse code in programming, depending on how you want to design your software.</p>
@@ -1035,7 +1206,7 @@ pre code {
 <p>In ECS, an <strong>Entity</strong> can be anything in your game—like a player, a monster, or even a power-up. Each Entity is made up of <strong>Components</strong>, which are like individual traits or characteristics. For example, a player Entity might have components for Health, Input and Movement.</p>
 <p>These Components are designed to be super focused, each doing just one thing really well. This makes it easy to mix and match them—just like assembling a custom vehicle—to create different types of Entities.</p>
 <figure class="fig" style="--fig-w:1440px">
-  <img src="/writing/rise-and-shine/entity-component-system.webp" alt="Entity Component System" width="1440" height="810" loading="lazy" decoding="async" />
+  <img src="/writing/rise-and-shine/entity-component-system.webp" alt="" width="1440" height="810" loading="lazy" decoding="async" />
   <figcaption>Entity Component System</figcaption>
 </figure>
 <p>But it doesn’t end there. The <strong>System</strong> part of ECS is where the magic happens. Systems are like the managers who oversee how Components interact and behave in the game world. They handle things like physics, rendering, or AI logic.</p>
@@ -1043,20 +1214,19 @@ pre code {
 <p><a href="https://www.youtube.com/watch?v=74y6zWZfQKk">This short video</a> is an excellent resource for understanding these concepts!</p>
 <p>Using this approach, and closely following <a href="https://www.youtube.com/watch?v=yzbxoZFsU2Y">this video</a>, I made my very own modular component based player!</p>
 <figure class="fig" style="--fig-w:295px">
-  <img src="/writing/rise-and-shine/player-with-components.webp" alt="Player with components" width="295" height="266" loading="lazy" decoding="async" />
+  <img src="/writing/rise-and-shine/player-with-components.webp" alt="" width="295" height="266" loading="lazy" decoding="async" />
   <figcaption>Player with components</figcaption>
 </figure>
 <p>The Components are scripts that are all Classes and the central System for the ECS is the Player script.</p>
 <figure class="fig" style="--fig-w:946px">
-  <img src="/writing/rise-and-shine/player-script.webp" alt="Player Script" width="946" height="733" loading="lazy" decoding="async" />
+  <img src="/writing/rise-and-shine/player-script.webp" alt="" width="946" height="733" loading="lazy" decoding="async" />
   <figcaption>Player Script</figcaption>
 </figure>
 <p>This way, although the components handle their own tasks, the central control is still the Player script itself.</p>
 <p>This is a little preview of what our player looks like now. You will also notice that I’ve changed the sprite again, this is only one of the many iterations that I go through, so get used to it.</p>
 <figure class="fig" style="--fig-w:1280px">
   <video class="clip" data-clip loop muted playsinline controls preload="none"
-         poster="/writing/rise-and-shine/modular-player-moving.webp" width="1280" height="720"
-         aria-label="Modular Player moving around">
+         poster="/writing/rise-and-shine/modular-player-moving.webp" width="1280" height="720">
     <source src="/writing/rise-and-shine/modular-player-moving.webm" type="video/webm" />
     <source src="/writing/rise-and-shine/modular-player-moving.mp4" type="video/mp4" />
   </video>
@@ -1067,17 +1237,17 @@ pre code {
 <h3 id="inherited-scenes">Inherited Scenes</h3>
 <p>Remember all that talk about Inheritance and Composition? If the Player follows a Composition-based system, then my Items are where I employ use of Inheritance. Remember, it’s never Composition versus Inheritance, it’s always Composition <em>and</em> Inheritance. Let me talk about the system to explain more.</p>
 <figure class="fig" style="--fig-w:982px">
-  <img src="/writing/rise-and-shine/mind-map-for-items.webp" alt="Mind Map for Items" width="982" height="758" loading="lazy" decoding="async" />
+  <img src="/writing/rise-and-shine/mind-map-for-items.webp" alt="" width="982" height="758" loading="lazy" decoding="async" />
   <figcaption>Mind Map for Items</figcaption>
 </figure>
 <p>I plan on making a base Item scene that will contain all the logic and components that an Item should, and for specific use cases, such as a Key for example, we can make a new inherited scene from the Item scene and update it with new components etc. accordingly. Unfortunately, there is no official documentation for inherited scenes in Godot yet, but they work exactly how I’ve said, and you have to take my word for it.</p>
 <p>You may also notice the <code>HolderComponent</code> on my player, along with a <code>HoldLocation</code> node, this is me trying to implement a mechanic that allows the player to <em>hold</em> or <em>carry</em> an item, tying in with the theme of the jam. Currently, all this system does is print debug statements in the console, still a lot of work to do.</p>
 <figure class="fig" style="--fig-w:293px">
-  <img src="/writing/rise-and-shine/item-scene-hierarchy.webp" alt="Item Scene Hierarchy" width="293" height="135" loading="lazy" decoding="async" />
+  <img src="/writing/rise-and-shine/item-scene-hierarchy.webp" alt="" width="293" height="135" loading="lazy" decoding="async" />
   <figcaption>Item Scene Hierarchy</figcaption>
 </figure>
 <p>This is the hierarchy for my base item scene at the moment. We have a simple pickup component which check if the Player is inside the pickup range of the Item, and if so, asks the player to pick the Item up.</p>
-<pre><code>extends Node
+<pre tabindex="0"><code>extends Node
 class_name PickupComponent
 
 @export_subgroup(&quot;Settings&quot;)
@@ -1097,13 +1267,13 @@ func _on_pickup(body) -&gt; void:
 <p>At the moment, the system handles picking items up, and dropping them, which deletes them from the world. Keep in mind this can’t even be counted as a prototype at the moment, the system is still in its infancy.</p>
 <p>Let me showcase the inherited scenes I talked about earlier now.</p>
 <figure class="fig" style="--fig-w:1440px">
-  <img src="/writing/rise-and-shine/key-scene.webp" alt="Key Scene" width="1440" height="597" loading="lazy" decoding="async" />
+  <img src="/writing/rise-and-shine/key-scene.webp" alt="" width="1440" height="597" loading="lazy" decoding="async" />
   <figcaption>Key Scene</figcaption>
 </figure>
 <p>This is my Key scene at the moment, notice how the hierarchy is exactly the same as the item? That is because this is an inherited scene, made obvious by the names highlighted in yellow, meaning that the nodes have been inherited. You may also notice the key Sprite, this is one of the perks of inherited scenes. In our Item scene, I use a placeholder sprite and in my actual items I can just change the Sprite to match the items.</p>
 <h3 id="dont-repeat-yourself">Don’t Repeat Yourself</h3>
 <p>Around this time I also found myself needing to add the items back to the Tilemap whenever they were dropped, and for that I had to call this, not so little, snippet:</p>
-<pre><code>get_tree().get_root().get_node(&quot;/root/PlatformerWorld/Tilemap/Foreground&quot;).add_child.call_deferred(child)
+<pre tabindex="0"><code>get_tree().get_root().get_node(&quot;/root/PlatformerWorld/Tilemap/Foreground&quot;).add_child.call_deferred(child)
 </code></pre>
 <p>To me, rewriting the same code again and again has always seemed to be an inefficiency, and I do not enjoy it, which is why I’m a staunch believer in the <a href="https://en.wikipedia.org/wiki/Don%27t_repeat_yourself">DRY Principle</a>.</p>
 <aside class="note">
@@ -1112,7 +1282,7 @@ func _on_pickup(body) -&gt; void:
 </aside>
 <p>Simply put, If you find yourself writing the same piece of code over and over again, turn it into a smaller piece of code. To achieve this I decided to employ an <a href="https://docs.godotengine.org/en/stable/tutorials/scripting/singletons_autoload.html">autoload a.k.a singleton</a>.</p>
 <p>Singletons are scenes or scripts that are always loaded in the background, and can be accessed from anywhere, regardless of scene or state in your game. I used this functionality to write a Utility script, inside of which I plan to put all the code I find too long to rewrite. For now, this is what we have:</p>
-<pre><code>extends Node
+<pre tabindex="0"><code>extends Node
 
 func _add_platformer_world_tilemap_child(child) -&gt; void:
 	get_tree().get_root().get_node(&quot;/root/PlatformerWorld/Tilemap/Foreground&quot;).add_child.call_deferred(child)
@@ -1124,7 +1294,7 @@ func _add_platformer_world_tilemap_child(child) -&gt; void:
 <h2 id="health-damage-and-respawns">Health, Damage and Respawns</h2>
 <p>With my game, I wanted to do something unique, something different, so I decided to venture into unexplored territory in platformer games. . . <em>Health Systems</em>. Just kidding. I’m not a platformer-maestro, but I do know that all good platformers feature some variation of health and damage systems, and so will my game.</p>
 <p>I wrote a boilerplate HealthComponent script for the player to handle damage. It goes like this:</p>
-<pre><code>extends Node
+<pre tabindex="0"><code>extends Node
 class_name HealthComponent
 
 @export var max_health: int = 3
@@ -1163,7 +1333,7 @@ func die() -&gt; void:
 </ul>
 <p>And due to this, Hazards are also going to be inherited scenes, so I can do less work and gain more material. :D</p>
 <p>I also a made a new <code>HurtComponent</code> for the Hazards.</p>
-<pre><code>extends Node
+<pre tabindex="0"><code>extends Node
 class_name HurtComponent
 
 @export_subgroup(&quot;Settings&quot;)
@@ -1179,7 +1349,7 @@ func _on_hurt_box_entered(body: Node2D) -&gt; void:
 	health_component.take_damage(damage)
 </code></pre>
 <p>If you look closely, you’ll notice a new helper function in our <code>utils</code> class. I found myself trying to get references and/or checking for a certain component in a node far too often to not streamline a solution for it, so I made this function:</p>
-<pre><code>func get_component(parent: Node, component: String):
+<pre tabindex="0"><code>func get_component(parent: Node, component: String):
 	if parent.has_node(component):
 		return parent.get_node(component)
 	else:
@@ -1190,8 +1360,7 @@ func _on_hurt_box_entered(body: Node2D) -&gt; void:
 <p>Now that it is possible to die, it must also be made possible to come back to life. Thus I decided to make a checkpoint system. The Pixel Platformer pack comes with a cool looking flag sprite, which I decided to adopt for the checkpoint. We add a nifty little animation when the player walks into the checkpoint, and then disable the processing for the checkpoint once its triggered, to make it a one-time thing only.</p>
 <figure class="fig" style="--fig-w:1280px">
   <video class="clip" data-clip loop muted playsinline controls preload="none"
-         poster="/writing/rise-and-shine/checkpoint-animation.webp" width="1280" height="756"
-         aria-label="The player walks into the checkpoint flag and it raises; a pink test hazard sits nearby and the key and diamond bob up and down on the wave shader.">
+         poster="/writing/rise-and-shine/checkpoint-animation.webp" width="1280" height="756" aria-label="The player walks into the checkpoint flag and it raises; a pink test hazard sits nearby and the key and diamond bob up and down on the wave shader.">
     <source src="/writing/rise-and-shine/checkpoint-animation.webm" type="video/webm" />
     <source src="/writing/rise-and-shine/checkpoint-animation.mp4" type="video/mp4" />
   </video>
@@ -1201,14 +1370,13 @@ func _on_hurt_box_entered(body: Node2D) -&gt; void:
 <h3 id="spikes">Spikes</h3>
 <p>Now, let’s make an actual Hazard. I decided to go with Spikes, because you can never go wrong with some good ol’ spikes. Also the fact that the pack comes with a cool spikes sprite.</p>
 <figure class="fig" style="--fig-w:1440px">
-  <img src="/writing/rise-and-shine/spikes-scene.webp" alt="Spikes Scene" width="1440" height="593" loading="lazy" decoding="async" />
+  <img src="/writing/rise-and-shine/spikes-scene.webp" alt="" width="1440" height="593" loading="lazy" decoding="async" />
   <figcaption>Spikes Scene</figcaption>
 </figure>
 <p>I used a simple rectangle for the collision shape, keeping it simple and sleek. The spikes are configured to deal 1 damage on touch.</p>
 <figure class="fig" style="--fig-w:1280px">
   <video class="clip" data-clip loop muted playsinline controls preload="none"
-         poster="/writing/rise-and-shine/spikes-working-perfectly.webp" width="1280" height="756"
-         aria-label="Perfectly working Spikes with nothing wrong at all">
+         poster="/writing/rise-and-shine/spikes-working-perfectly.webp" width="1280" height="756">
     <source src="/writing/rise-and-shine/spikes-working-perfectly.webm" type="video/webm" />
     <source src="/writing/rise-and-shine/spikes-working-perfectly.mp4" type="video/mp4" />
   </video>
@@ -1216,7 +1384,7 @@ func _on_hurt_box_entered(body: Node2D) -&gt; void:
 </figure>
 <h3 id="invincibility-frames">Invincibility Frames</h3>
 <p>At this point, I decided to add invincibility frames, also commonly referred to as i-frames, to my <code>HealthComponent</code>, because right now as soon as I touch the spikes, it instantly sucks all my health. While doing this I found myself instantiating another timer through code. This was the third time I was doing this now so I decided to add the timer initializing logic to my utils script:</p>
-<pre><code>func _initialize_timer(_name: String, _wait_time: float):
+<pre tabindex="0"><code>func _initialize_timer(_name: String, _wait_time: float):
 	var _timer = Timer.new()
 	_timer.wait_time = _wait_time
 	_timer.one_shot = true
@@ -1224,7 +1392,7 @@ func _on_hurt_box_entered(body: Node2D) -&gt; void:
 	return _timer
 </code></pre>
 <p>Now I can just call this to make new timers anywhere in my game. Like:</p>
-<pre><code>
+<pre tabindex="0"><code>
 func initialize_invincibility_timer() -&gt; void:
 	invincibility_timer = utils._initialize_timer(&quot;InvincibilityTimer&quot;, invincibility_time)
 	add_child(invincibility_timer)
@@ -1234,8 +1402,7 @@ func initialize_invincibility_timer() -&gt; void:
 <p>Here’s a showcase of the holding/throwing mechanic as well as the hurt and respawn. Today’s work was more under-the-hood so I can’t show much for it, but the code-base looks much sleeker.  Many functions were reworked to work better.</p>
 <figure class="fig" style="--fig-w:1280px">
   <video class="clip" data-clip loop muted playsinline controls preload="none"
-         poster="/writing/rise-and-shine/holding-throwing-hurt-respawn.webp" width="1280" height="720"
-         aria-label="Showcase of whatever I said up there.">
+         poster="/writing/rise-and-shine/holding-throwing-hurt-respawn.webp" width="1280" height="720">
     <source src="/writing/rise-and-shine/holding-throwing-hurt-respawn.webm" type="video/webm" />
     <source src="/writing/rise-and-shine/holding-throwing-hurt-respawn.mp4" type="video/mp4" />
   </video>
@@ -1251,8 +1418,7 @@ func initialize_invincibility_timer() -&gt; void:
 <p>Up until now, I had been planning to go the retro platformer route— sunshine and rainbows, <a href="https://sfxr.me">SFXR</a> sound effects— The usual platformer pipeline. But then, I had a wicked thought, what if instead of jumps, I voiced the grunts? Instead of the usual dying sounds, its me breathing my lungs out? Then one thing lead to another and— The game looks different now.</p>
 <figure class="fig" style="--fig-w:1280px">
   <video class="clip" data-clip loop muted playsinline controls preload="none"
-         poster="/writing/rise-and-shine/newer-look-different-feel.webp" width="1280" height="756"
-         aria-label="Newer Look, Different Feel">
+         poster="/writing/rise-and-shine/newer-look-different-feel.webp" width="1280" height="756">
     <source src="/writing/rise-and-shine/newer-look-different-feel.webm" type="video/webm" />
     <source src="/writing/rise-and-shine/newer-look-different-feel.mp4" type="video/mp4" />
   </video>
@@ -1260,7 +1426,7 @@ func initialize_invincibility_timer() -&gt; void:
 </figure>
 <p>I saw this and my brain immediately went—</p>
 <figure class="fig" style="--fig-w:224px">
-  <img src="/writing/rise-and-shine/neuron-activation.webp" alt="Neuron Activation" width="224" height="224" loading="lazy" decoding="async" />
+  <img src="/writing/rise-and-shine/neuron-activation.webp" alt="" width="224" height="224" loading="lazy" decoding="async" />
   <figcaption>Neuron Activation</figcaption>
 </figure>
 <p>I mean, I’ve always been a dark mode fan, and red on top of that? With 2D lights? Hell yeah.</p>
@@ -1270,11 +1436,11 @@ func initialize_invincibility_timer() -&gt; void:
 <p>We have keys in the game, but what are the keys supposed to do? Open the doors! Which doors you ask? Well, the ones I’m about to make.</p>
 <h3 id="doors">Doors</h3>
 <figure class="fig" style="--fig-w:1440px">
-  <img src="/writing/rise-and-shine/door-scene.webp" alt="Door Scene" width="1440" height="565" loading="lazy" decoding="async" />
+  <img src="/writing/rise-and-shine/door-scene.webp" alt="" width="1440" height="565" loading="lazy" decoding="async" />
   <figcaption>Door Scene</figcaption>
 </figure>
 <p>We have a Sprite, a StaticBody2D to handle collisions, and <strong>two</strong> Area2Ds, one that detects the key, and another that detects the neighboring doors. Why the neighbors you may wonder, the answer to that question is because I want my doors to break like a chain reaction, one of them opening unlocks all connected doors like dominoes. At least that’s the plan, for now. I added an <code>UnlockableComponent</code> to the Door and a <code>KeyComponent</code> to our Key scene, which were just basic scripts with connections to their respective nodes’ Area2Ds. Here’s the script for the <code>UnlockableComponent</code> for now:</p>
-<pre><code>extends Node
+<pre tabindex="0"><code>extends Node
 class_name UnlockableComponent
 
 @export_subgroup(&quot;Settings&quot;)
@@ -1306,7 +1472,7 @@ func unlock() -&gt; void:
 <p>At this point, I had decided to upload the game first, so we went on a little tangent to make the branding for the game, the cover art, for one.</p>
 <p>After a bit of iteration, this is what I ended up going with. Keep in mind, I didn’t have a lot of time to spare on the art, I had a game to complete.</p>
 <figure class="fig" style="--fig-w:635px">
-  <img src="/writing/rise-and-shine/rise-and-shine-cover.webp" alt="Cover for Rise&amp;Shine" width="635" height="500" loading="lazy" decoding="async" />
+  <img src="/writing/rise-and-shine/rise-and-shine-cover.webp" alt="" width="635" height="500" loading="lazy" decoding="async" />
   <figcaption>Cover for Rise&amp;Shine</figcaption>
 </figure>
 <p>The rest of the day I spent on setting up the website you’re currently on, after which I decided to hit the sack. I should mention that I am still not home at this point in time, so I have lesser time than usual to work on the game.</p>
@@ -1317,8 +1483,7 @@ func unlock() -&gt; void:
 <p>Okay, so you’re a wizard, in a dark environment, exploring, and there are already lights in the scene. All of this can only lead to one thing, a fireball! So I once again employed the ever-useful particles to make a flame effect, and I gotta say, I’m very proud of it.</p>
 <figure class="fig" style="--fig-w:1280px">
   <video class="clip" data-clip loop muted playsinline controls preload="none"
-         poster="/writing/rise-and-shine/lovely-blue-flame.webp" width="1280" height="692"
-         aria-label="Lovely Blue Flame">
+         poster="/writing/rise-and-shine/lovely-blue-flame.webp" width="1280" height="692">
     <source src="/writing/rise-and-shine/lovely-blue-flame.webm" type="video/webm" />
     <source src="/writing/rise-and-shine/lovely-blue-flame.mp4" type="video/mp4" />
   </video>
@@ -1327,7 +1492,7 @@ func unlock() -&gt; void:
 <p>Once again, particles, are, awesome. Use them wherever you can. They add a lot to a game’s feel.</p>
 <h3 id="position-flipping-component">Position Flipping Component</h3>
 <p>With the flame, I also made a new component, the <code>PositionFlippingComponent</code> , whose job it is to flip positions, literally. This was a necessity because up until now, when the player is moving left, we simply flip it’s sprite horizontally to make it seem like he’s going that way, not flipping the entire player. One of the problems with this is that the children of the Player node don’t get flipped along with the sprite, and we don’t want that for nodes such as the Item we are holding, which is supposed to follow <em>behind</em> the player, or the flame, which is supposed to illuminate the way ahead. To counter this, I made this new component that will change the transform of a node according to the player’s direction. The node also has specified offsets, to account for any use-case scenario.</p>
-<pre><code>extends Node
+<pre tabindex="0"><code>extends Node
 class_name PositionFlippingComponent
 
 @export_subgroup(&quot;Settings&quot;)
@@ -1385,25 +1550,81 @@ func handle_flipping(threshold_property: float):
  * press play on. This script takes the controls away and drives them by scroll
  * position instead. If it never executes, or IntersectionObserver is missing,
  * or the reader has asked for reduced motion, the native controls simply stay
- * where they were. */
+ * where they were.
+ *
+ * Which leaves the reader who has none of those and still wants the page to
+ * hold still. Eighteen things move here — fifteen clips and three animated GIFs
+ * on other people's servers — and until this file grew a pause control, none of
+ * them could be stopped without a mouse. So the masthead carries one button
+ * that stops all of it, and pressing it puts the page into the state a reader
+ * with JavaScript off already gets: clips with their own controls back, nothing
+ * moving until asked. The GIFs have no controls to give back, so each becomes a
+ * button that puts it back — and under reduced motion they start that way,
+ * because a reader who asked for no motion should not have to ask twice.
+ */
 
 (function () {
   var clips = document.querySelectorAll('video[data-clip]');
+  var gifs = document.querySelectorAll('img[data-motion]');
+  var toggle = document.querySelector('[data-motion-toggle]');
   if (clips.length === 0) return;
-  if (!('IntersectionObserver' in window)) return;
+
+  var stubs = [];
+
+  function restore(button, image) {
+    if (!button.isConnected) return;
+    button.replaceWith(image);
+    image.hidden = false;
+  }
+
+  /* A GIF cannot be paused: there is no interface to it, and these three are on
+     servers we do not control, so there is no still frame to swap in that would
+     not mean re-hosting somebody else's work. What is left is to take it off
+     the page and offer it back, which is the same bargain the clips make. */
+  function stub(image) {
+    var button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'motion-stub';
+    button.textContent = 'Play the animation';
+    // The attributes, not the layout box: the box is whatever the column is
+    // wide, and a lazy image that has not loaded yet reports nothing at all.
+    button.style.aspectRatio =
+      image.getAttribute('width') + ' / ' + image.getAttribute('height');
+    button.addEventListener('click', function () {
+      restore(button, image);
+    });
+    image.hidden = true;
+    image.replaceWith(button);
+    return button;
+  }
+
+  function stubAll() {
+    gifs.forEach(function (image) {
+      if (image.isConnected) stubs.push([stub(image), image]);
+    });
+  }
 
   // Reduced motion is a request, not a preference to weigh. Fifteen looping
   // clips starting on their own is exactly what it is asking us not to do, so
-  // those readers keep the controls and press play themselves.
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  // those readers keep the controls and press play themselves — and the three
+  // GIFs, which would otherwise be the only thing on the page still moving for
+  // the one reader who asked for none of it, start as the button instead of
+  // the animation. Nothing here is taken away; it is all one press behind.
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    stubAll();
+    return;
+  }
 
+  if (!('IntersectionObserver' in window)) return;
+
+  var paused = false;
   document.documentElement.classList.add('clips-live');
 
   var observer = new IntersectionObserver(
     function (entries) {
       entries.forEach(function (entry) {
         var video = entry.target;
-        if (!entry.isIntersecting) {
+        if (paused || !entry.isIntersecting) {
           video.pause();
           return;
         }
@@ -1422,19 +1643,73 @@ func handle_flipping(threshold_property: float):
     { rootMargin: '250px 0px', threshold: 0.2 },
   );
 
+  function hold(video) {
+    if (video.paused) {
+      video.dataset.held = '0';
+      video.play();
+    } else {
+      video.dataset.held = '1';
+      video.pause();
+    }
+  }
+
   clips.forEach(function (video) {
     video.controls = false;
+    // Without this the clip is not focusable at all — a <video> with no
+    // controls is not in the tab order — so the click handler below was a
+    // mouse-only affordance. Space and Enter are what a button would take.
+    video.tabIndex = 0;
     video.addEventListener('click', function () {
-      if (video.paused) {
-        video.dataset.held = '0';
-        video.play();
-      } else {
-        video.dataset.held = '1';
-        video.pause();
-      }
+      // Once the page is paused the clip has its own controls back, and those
+      // own the click; a second handler on the same surface would fight them.
+      if (paused) return;
+      hold(video);
+    });
+    video.addEventListener('keydown', function (event) {
+      if (paused) return;
+      if (event.key !== ' ' && event.key !== 'Enter') return;
+      // Space scrolls the page by default, which is the opposite of what a
+      // reader who just aimed at this clip asked for.
+      event.preventDefault();
+      hold(video);
     });
     observer.observe(video);
   });
+
+  function setPaused(next) {
+    paused = next;
+    document.documentElement.classList.toggle('clips-live', !paused);
+
+    clips.forEach(function (video) {
+      video.controls = paused;
+      // A <video> with controls is focusable on its own; leaving our tabindex
+      // on it would be a second claim on the same tab stop.
+      if (paused) video.removeAttribute('tabindex');
+      else video.tabIndex = 0;
+      // Re-observing is what re-fires the callback for a clip that is already
+      // on screen; observe() alone does nothing to an element it already has.
+      observer.unobserve(video);
+      observer.observe(video);
+    });
+
+    if (paused) {
+      stubAll();
+    } else {
+      stubs.forEach(function (pair) {
+        restore(pair[0], pair[1]);
+      });
+      stubs = [];
+    }
+
+    toggle.textContent = paused ? 'Resume the motion' : 'Pause the motion';
+  }
+
+  if (toggle) {
+    toggle.parentElement.hidden = false;
+    toggle.addEventListener('click', function () {
+      setPaused(!paused);
+    });
+  }
 })();
     </script>
   </body>
