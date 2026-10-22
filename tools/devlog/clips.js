@@ -1,9 +1,11 @@
 /* Rise&Shine devlog — inlined into the page by tools/devlog/build.ts.
  *
- * The only script on the page. Fifteen clips that all begin decoding the moment
+ * The motion. Fifteen clips that all begin decoding the moment
  * the document is ready would make a 6,600-word article unreadable on anything
  * without a fan, so nothing plays until it is on screen and everything pauses
- * when it leaves.
+ * when it leaves. "On screen" means about half of it in view, with no margin:
+ * a clip that starts early is mid-loop by the time the reader arrives, and the
+ * remaining GIFs get the same rule, restarting from their first frame each time.
  *
  * This runs strictly as an enhancement, in the direction that keeps the page
  * working when it does not run at all: the markup ships `controls` and a poster
@@ -14,8 +16,8 @@
  * where they were.
  *
  * Which leaves the reader who has none of those and still wants the page to
- * hold still. Eighteen things move here — fifteen clips and three animated GIFs
- * on other people's servers — and until this file grew a pause control, none of
+ * hold still. Fifteen clips move here, and the animated GIFs still hosted
+ * on other people’s servers — and until this file grew a pause control, none of
  * them could be stopped without a mouse. So the masthead carries one button
  * that stops all of it, and pressing it puts the page into the state a reader
  * with JavaScript off already gets: clips with their own controls back, nothing
@@ -32,13 +34,39 @@
 
   var stubs = [];
 
+  // The remaining GIFs are on other people's servers and have no still frame we may
+  // host, so "stopped" has to mean "not loaded": the source is swapped for this
+  // empty one and swapped back to the real one on arrival, which is also what
+  // makes it start from frame one. The box is pinned first so nothing moves.
+  var BLANK =
+    'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+
+  function setGif(image, on) {
+    if (!image.dataset.src) {
+      image.dataset.src = image.src;
+      image.style.aspectRatio =
+        image.getAttribute('width') + ' / ' + image.getAttribute('height');
+    }
+    var wanted = on ? image.dataset.src : BLANK;
+    if (image.getAttribute('src') !== wanted) image.src = wanted;
+  }
+
+  // Half the element in view, or half the viewport when the element is taller
+  // than that and can never reach a ratio of 0.5 however far it scrolls.
+  function onScreen(entry) {
+    if (!entry.isIntersecting) return false;
+    if (entry.intersectionRatio >= 0.5) return true;
+    var root = entry.rootBounds;
+    return !!root && entry.intersectionRect.height >= root.height * 0.5;
+  }
+
   function restore(button, image) {
     if (!button.isConnected) return;
     button.replaceWith(image);
     image.hidden = false;
   }
 
-  /* A GIF cannot be paused: there is no interface to it, and these three are on
+  /* A GIF cannot be paused: there is no interface to it, and these are on
      servers we do not control, so there is no still frame to swap in that would
      not mean re-hosting somebody else's work. What is left is to take it off
      the page and offer it back, which is the same bargain the clips make. */
@@ -67,7 +95,7 @@
 
   // Reduced motion is a request, not a preference to weigh. Fifteen looping
   // clips starting on their own is exactly what it is asking us not to do, so
-  // those readers keep the controls and press play themselves — and the three
+  // those readers keep the controls and press play themselves — and the
   // GIFs, which would otherwise be the only thing on the page still moving for
   // the one reader who asked for none of it, start as the button instead of
   // the animation. Nothing here is taken away; it is all one press behind.
@@ -85,7 +113,7 @@
     function (entries) {
       entries.forEach(function (entry) {
         var video = entry.target;
-        if (paused || !entry.isIntersecting) {
+        if (paused || !onScreen(entry)) {
           video.pause();
           return;
         }
@@ -101,7 +129,20 @@
         }
       });
     },
-    { rootMargin: '250px 0px', threshold: 0.2 },
+    // No margin: the point is that nothing runs before the reader can see it.
+    // The list is so a tall clip still produces a callback as it crosses half
+    // the viewport, not only when its ratio crosses a single number.
+    { threshold: [0, 0.1, 0.25, 0.5, 0.75, 1] },
+  );
+
+  var gifObserver = new IntersectionObserver(
+    function (entries) {
+      entries.forEach(function (entry) {
+        // Detached means it is sitting behind its stub; leave it alone.
+        if (entry.target.isConnected) setGif(entry.target, !paused && onScreen(entry));
+      });
+    },
+    { threshold: [0, 0.1, 0.25, 0.5, 0.75, 1] },
   );
 
   function hold(video) {
@@ -137,6 +178,10 @@
     observer.observe(video);
   });
 
+  gifs.forEach(function (image) {
+    gifObserver.observe(image);
+  });
+
   function setPaused(next) {
     paused = next;
     document.documentElement.classList.toggle('clips-live', !paused);
@@ -154,12 +199,21 @@
     });
 
     if (paused) {
+      // Visibility no longer decides: the real source goes back now, so a GIF
+      // the reader asks for by hand plays wherever it is, not only on screen.
+      gifs.forEach(function (image) {
+        gifObserver.unobserve(image);
+        setGif(image, true);
+      });
       stubAll();
     } else {
       stubs.forEach(function (pair) {
         restore(pair[0], pair[1]);
       });
       stubs = [];
+      gifs.forEach(function (image) {
+        gifObserver.observe(image);
+      });
     }
 
     toggle.textContent = paused ? 'Resume the motion' : 'Pause the motion';

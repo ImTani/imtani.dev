@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>devlog editor</title>
+<style>
+:root {
+  color-scheme: light;
+  --serif: 'Sitka Text', Charter, 'Iowan Old Style', Constantia, Georgia, serif;
+  --mono: ui-monospace, 'Cascadia Mono', 'SF Mono', 'Segoe UI Mono', Menlo, Consolas, monospace;
+  --paper: #efe7d8; --ink: #3a332a; --muted: #6e614d; --accent: #90542c;
+  --rule: #dcd0b9; --rule-strong: #c6b89d; --sunk: #eadfc8; --ok: #4f6b3a; --bad: #9a3a2a;
+}
+* { box-sizing: border-box; }
+html { background: var(--paper); }
+body { margin: 0; color: var(--ink); font: 400 1.0625rem / 1.6 var(--serif); -webkit-font-smoothing: antialiased; }
+.sheet { max-width: 62rem; margin: 0 auto; padding: 0 clamp(1.25rem, 4vw, 3rem) 6rem; }
+header.top { padding: 3rem 0 2rem; border-bottom: 1px solid var(--rule); }
+.eyebrow { font: 500 11px/1 var(--mono); text-transform: uppercase; letter-spacing: 0.14em; color: var(--muted); display: flex; align-items: center; gap: 0.75rem; margin: 0 0 1rem; }
+.eyebrow::after { content: ""; flex: 1; height: 1px; background: var(--rule); }
+h1 { font-size: clamp(2rem, 4.5vw, 3rem); line-height: 1.05; margin: 0; letter-spacing: -0.015em; font-weight: 600; }
+.note { color: var(--muted); max-width: 46rem; margin: 1rem 0 0; text-wrap: pretty; }
+.note code, .file { font: 400 12px/1.5 var(--mono); color: var(--ink); word-break: break-all; }
+h2.group { font: 600 11px/1 var(--mono); text-transform: uppercase; letter-spacing: 0.14em; color: var(--accent); margin: 3rem 0 0; padding-bottom: 0.8rem; border-bottom: 1px solid var(--rule-strong); }
+.card { padding: 2.2rem 0 2.4rem; border-bottom: 1px solid var(--rule); }
+.card h3 { font-size: 1.4rem; line-height: 1.2; margin: 0 0 0.4rem; font-weight: 600; letter-spacing: -0.01em; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.5rem 0.9rem; }
+.n { font: 600 12px/1 var(--mono); color: var(--accent); letter-spacing: 0.12em; }
+.badge { font: 600 10px/1 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; padding: 0.3rem 0.5rem; border: 1px solid var(--rule-strong); color: var(--muted); }
+.badge.applied, .badge.kept { color: var(--ok); border-color: var(--ok); }
+.badge.pending { color: var(--accent); border-color: var(--accent); }
+.badge.not-found { color: var(--bad); border-color: var(--bad); }
+.badge.optional { background: var(--sunk); }
+.why { color: var(--muted); margin: 0 0 1.2rem; max-width: 46rem; text-wrap: pretty; }
+dl { margin: 0; display: grid; grid-template-columns: 8rem minmax(0, 1fr); gap: 0.9rem 1.5rem; max-width: 50rem; }
+dt { font: 500 11px/1.9 var(--mono); text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
+dd { margin: 0; text-wrap: pretty; white-space: pre-wrap; overflow-wrap: anywhere; }
+dd.ctx { border-left: 1px solid var(--rule-strong); padding-left: 1rem; }
+dd.ctx .dim { color: var(--muted); font-size: 0.92em; }
+mark { background: #e9d3a8; color: var(--ink); padding: 0 0.1em; }
+mark.rm { background: #e8c1b3; text-decoration: line-through; }
+dd.sugg { color: var(--ok); }
+.line { font: 400 11px/1.5 var(--mono); color: var(--muted); }
+@media (max-width: 640px) { dl { grid-template-columns: 1fr; gap: 0.2rem; } dd { margin-bottom: 0.8rem; } }
+textarea, input[type=text] { display: block; width: 100%; max-width: 50rem; margin-top: 0.6rem; padding: 0.8rem 1rem; font: 400 1rem/1.55 var(--serif); color: var(--ink); background: #f6f0e3; border: 1px solid var(--rule-strong); }
+textarea { min-height: 7rem; resize: vertical; }
+textarea:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+label.yours { display: block; margin-top: 1.4rem; max-width: 50rem; font: 600 11px/1 var(--mono); text-transform: uppercase; letter-spacing: 0.1em; }
+.actions { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; margin-top: 0.9rem; }
+button { font: 600 11px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink); background: var(--sunk); border: 1px solid var(--rule-strong); padding: 0.7rem 1rem; cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+button:disabled { opacity: 0.45; cursor: default; }
+button.go { background: var(--accent); border-color: var(--accent); color: #fbf6ea; }
+button.go:hover:not(:disabled) { color: #fbf6ea; filter: brightness(1.08); }
+.msg { font: 400 12px/1.5 var(--mono); color: var(--accent); }
+.msg.err { color: var(--bad); }
+.msg.ok { color: var(--ok); }
+.hits .hit { padding: 1rem 0; border-bottom: 1px solid var(--rule); }
+.hits .hit p { margin: 0.2rem 0 0.6rem; white-space: pre-wrap; overflow-wrap: anywhere; max-width: 50rem; }
+pre.out { font: 400 11.5px/1.5 var(--mono); background: #f6f0e3; border: 1px solid var(--rule-strong); padding: 1rem; max-height: 22rem; overflow: auto; white-space: pre-wrap; max-width: 50rem; }
+a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="sheet">
+<header class="top">
+  <p class="eyebrow">Local tool · devlog prose</p>
+  <h1>Places to change</h1>
+  <p class="note">Each card finds its text in the Notion export, exactly, and refuses to write if it is not there as expected. Every write keeps a backup in <code>.edit-backups/</code> beside the file. Editing: <span class="file" id="file"></span></p>
+</header>
+
+<h2 class="group">Suggested edits</h2>
+<main id="cards"></main>
+
+<h2 class="group">Search any paragraph</h2>
+<section id="search">
+  <label class="yours" for="q">Find text</label>
+  <input type="text" id="q" placeholder="type two or more characters" autocomplete="off" />
+  <div class="hits" id="hits"></div>
+</section>
+
+<h2 class="group">One extra field, not in the markdown</h2>
+<section class="card" id="quip">
+  <h3>Godot switch quip</h3>
+  <p class="why">Short text that will sit beside a &ldquo;Use Godot&rsquo;s Y-axis&rdquo; toggle on the coordinate-grid figure. It shows up once the grid figure exists; until then it is just saved to <code>tools/devlog/figure-text.json</code>.</p>
+  <label class="yours" for="quipText">Quip</label>
+  <input type="text" id="quipText" maxlength="160" />
+  <div class="actions"><button class="go" id="quipSave">Save quip</button><span class="msg" id="quipMsg" role="status"></span></div>
+</section>
+
+<h2 class="group">Preview</h2>
+<section class="card">
+  <p class="why">Runs <code>npm run build</code> in <code>site/</code>, then refresh <a href="http://localhost:4173/writing/rise-and-shine.html" target="_blank" rel="noopener">http://localhost:4173/writing/rise-and-shine.html</a>.</p>
+  <div class="actions"><button class="go" id="build">Rebuild preview</button><span class="msg" id="buildMsg" role="status"></span></div>
+  <pre class="out" id="buildOut" hidden></pre>
+</section>
+</div>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+
+async function api(path, body) {
+  const res = await fetch(path, body === undefined ? {} : { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || res.statusText);
+  return data;
+}
+function say(node, text, kind) { node.textContent = text; node.className = 'msg' + (kind ? ' ' + kind : ''); }
+
+const store = new Map(); // textarea edits survive a refresh of other cards
+async function loadCards() {
+  const { file, cards } = await api('/api/cards');
+  $('#file').textContent = file;
+  const root = $('#cards');
+  root.replaceChildren();
+  cards.forEach((c, i) => root.append(card(c, i + 1)));
+}
+
+function card(c, n) {
+  const art = el('article', 'card');
+  const h = el('h3');
+  h.append(el('span', 'n', String(n).padStart(2, '0')), c.title);
+  h.append(el('span', 'badge ' + c.status.replace(' ', '-'), c.status));
+  if (c.optional) h.append(el('span', 'badge optional', 'optional'));
+  art.append(h, el('p', 'why', c.why));
+
+  const dl = el('dl');
+  const ctx = el('dd', 'ctx');
+  if (c.found > 0) {
+    ctx.append(el('span', 'dim', c.before));
+    ctx.append(el('mark' + (c.kind === 'remove' ? '' : ''), null, c.current.replace(/\n\n$/, '')));
+    if (c.kind === 'remove') ctx.lastChild.className = 'rm';
+    ctx.append(el('span', 'dim', (c.kind === 'remove' ? '\n\n' : '') + c.after));
+  } else {
+    ctx.textContent = c.status === 'applied' ? '(already changed; the original text is no longer in the file)' : 'Not found in the file as expected.';
+  }
+  dl.append(el('dt', null, 'Current'), ctx);
+  if (c.kind !== 'remove') dl.append(el('dt', null, 'Suggested'), el('dd', 'sugg', c.suggested));
+  const where = c.line ? `line ${c.line}` + (c.expect > 1 ? `, and ${c.expect - 1} more place` : '') + ` · found ${c.found}×, expected ${c.expect}×` : `found ${c.found}×, expected ${c.expect}×`;
+  dl.append(el('dt', null, 'Where'), el('dd', 'line', where));
+  if (c.note) dl.append(el('dt', null, 'Note'), el('dd', 'line', c.note));
+  art.append(dl);
+
+  const msg = el('span', 'msg');
+  const actions = el('div', 'actions');
+  let ta = null;
+  if (c.kind !== 'remove') {
+    const id = 'ta-' + c.id;
+    const lab = el('label', 'yours', 'Your text'); lab.htmlFor = id;
+    ta = el('textarea'); ta.id = id;
+    ta.value = store.get(c.id) ?? c.suggested;
+    ta.rows = c.suggested.includes('\n') ? 7 : 3;
+    ta.addEventListener('input', () => store.set(c.id, ta.value));
+    art.append(lab, ta);
+  }
+  const act = async (label, path, body, done) => {
+    try { await api(path, body); store.delete(c.id); await loadCards(); }
+    catch (e) { say(msg, e.message, 'err'); }
+  };
+  const ready = c.found === c.expect;
+  if (c.kind === 'remove') {
+    const b = el('button', 'go', 'Remove figure'); b.disabled = !ready;
+    b.onclick = () => act('remove', '/api/remove', { id: c.id });
+    actions.append(b);
+  } else {
+    const b = el('button', 'go', 'Apply'); b.disabled = !ready;
+    b.onclick = () => act('apply', '/api/apply', { id: c.id, text: ta.value });
+    const k = el('button', null, 'Use current'); k.disabled = !ready || c.status === 'kept';
+    k.onclick = () => act('keep', '/api/keep', { id: c.id });
+    actions.append(b, k);
+  }
+  actions.append(msg);
+  art.append(actions);
+  return art;
+}
+
+// ---- search
+let timer;
+$('#q').addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(runSearch, 250); });
+async function runSearch() {
+  const q = $('#q').value;
+  const box = $('#hits'); box.replaceChildren();
+  if (q.trim().length < 2) return;
+  try {
+    const { results } = await api('/api/search?q=' + encodeURIComponent(q));
+    if (!results.length) { box.append(el('p', 'why', 'No paragraph contains that.')); return; }
+    for (const r of results) {
+      const d = el('div', 'hit');
+      d.append(el('span', 'line', 'line ' + r.line));
+      d.append(el('p', null, r.text.length > 360 ? r.text.slice(0, 360) + '…' : r.text));
+      const edit = el('button', null, 'Edit');
+      edit.onclick = () => openEditor(d, r, edit);
+      d.append(edit);
+      box.append(d);
+    }
+  } catch (e) { box.append(el('p', 'msg err', e.message)); }
+}
+function openEditor(d, r, btn) {
+  btn.remove();
+  const ta = el('textarea'); ta.value = r.text; ta.rows = Math.min(14, Math.max(4, Math.ceil(r.text.length / 80)));
+  const go = el('button', 'go', 'Apply'); const msg = el('span', 'msg');
+  go.onclick = async () => {
+    try { await api('/api/edit-paragraph', { original: r.text, text: ta.value }); say(msg, 'Written. Search again to see it.', 'ok'); go.disabled = true; loadCards(); }
+    catch (e) { say(msg, e.message, 'err'); }
+  };
+  const row = el('div', 'actions'); row.append(go, msg);
+  d.append(ta, row);
+  ta.focus();
+}
+
+// ---- quip
+(async () => { try { $('#quipText').value = (await api('/api/figure-text')).grid?.godotQuip ?? ''; } catch {} })();
+$('#quipSave').onclick = async () => {
+  try { await api('/api/figure-text', { godotQuip: $('#quipText').value }); say($('#quipMsg'), 'Saved.', 'ok'); }
+  catch (e) { say($('#quipMsg'), e.message, 'err'); }
+};
+
+// ---- build
+$('#build').onclick = async () => {
+  const b = $('#build'); b.disabled = true; say($('#buildMsg'), 'Building… this can take a minute.');
+  const out = $('#buildOut'); out.hidden = true;
+  try {
+    const r = await api('/api/rebuild', {});
+    say($('#buildMsg'), r.ok ? `Build succeeded in ${(r.ms / 1000).toFixed(1)}s. Refresh the preview.` : `Build FAILED (exit ${r.code}).`, r.ok ? 'ok' : 'err');
+    out.textContent = r.tail; out.hidden = false; out.scrollTop = out.scrollHeight;
+  } catch (e) { say($('#buildMsg'), e.message, 'err'); }
+  b.disabled = false;
+};
+
+loadCards().catch((e) => { $('#cards').textContent = e.message; });
+</script>
+</body>
+</html>

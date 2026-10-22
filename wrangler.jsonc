@@ -33,7 +33,22 @@
     "enabled": true
   }
 
-  // No D1, no KV, no analytics binding. The site collects nothing, and the
-  // absence of a storage binding is what makes that checkable rather than a
-  // promise.
+  // No D1, no KV, no analytics binding. Nothing in this Worker stores anything
+  // about anybody, and the absence of a storage binding is what makes that
+  // checkable rather than a promise.
+  //
+  // It used to say "the site collects nothing", which was a stronger claim than
+  // this file can make and is no longer true. Cloudflare Web Analytics is on
+  // for the account, so the edge injects a beacon into every HTML response
+  // after this Worker has finished with it: about 11 kB of script and one
+  // request per page view carrying timing, referrer and country. It is
+  // cookieless and sets no persistent identifier, and Tani has decided to keep
+  // it — 16 August 2026.
+  //
+  // Recorded here rather than quietly dropped, because a claim about what a
+  // site does is exactly the kind of thing this site argues should survive
+  // being checked, and anyone can catch this one in ten seconds with DevTools.
+  // The toggle is account-level, not zone-level, which is why it is not
+  // findable anywhere in the imtani.dev settings: Cloudflare dashboard →
+  // account home → Analytics & Logs → Web Analytics.
 }

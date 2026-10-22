@@ -12,6 +12,7 @@
     "bake": "node tools/bake.ts",
     "devlog": "node tools/devlog/build.ts",
     "devlog:media": "node tools/devlog/media.ts",
+    "devlog:edit": "node tools/devlog/editor/server.ts",
     "bench": "node tools/bench.ts",
     "pretypecheck": "npm run bake",
     "typecheck": "tsc --build --force",

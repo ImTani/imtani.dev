@@ -43,6 +43,7 @@ import {
   OUT_DIR_REL,
   SLUGS,
   SOURCE_DIR_REL,
+  encodeWidth,
   extensionOf,
 } from './embeds.ts';
 
@@ -52,9 +53,21 @@ const sourceDir = resolve(siteRoot, SOURCE_DIR_REL);
 const outDir = resolve(siteRoot, OUT_DIR_REL);
 const manifestPath = resolve(siteRoot, MEDIA_MANIFEST_REL);
 
-/** Wide enough for a 2x display at the figure's rendered width; no larger. */
-const MAX_IMAGE_WIDTH = 1440;
-const MAX_VIDEO_WIDTH = 1280;
+/**
+ * The transcode width is no longer a flat cap.
+ *
+ * It was `min(native, 1440)` for images and `min(native, 1280)` for video, which
+ * is a size budget rather than an answer to the question the page actually asks:
+ * how wide does this figure RENDER, and does the browser have to resample it to
+ * get there? A capture a little wider than the column took a shallow non-integer
+ * downscale — all the softening of a resample and none of the size change — and
+ * seven of the forty figures were in that band at the current column.
+ *
+ * `encodeWidth` in embeds.ts answers it from the figure's own render width, so
+ * every picture now lands on exactly 1:1, exactly 0.5, or a downscale between
+ * 0.50 and 0.79 that is deep enough to be worth its own softness. Nothing is
+ * enlarged and nothing is guessed at here.
+ */
 
 export interface MediaEntry {
   readonly kind: 'image' | 'video';
@@ -124,8 +137,8 @@ function scaleFilter(width: number, max: number, even: boolean): string {
 
 function convertImage(source: string, slug: string): MediaEntry {
   const src = join(sourceDir, source);
-  const { width } = probeSize(src);
-  const filter = scaleFilter(width, MAX_IMAGE_WIDTH, false);
+  const { width, height } = probeSize(src);
+  const filter = scaleFilter(width, encodeWidth(width, height, false), false);
 
   const lossy = join(outDir, `${slug}.lossy.webp`);
   const lossless = join(outDir, `${slug}.lossless.webp`);
@@ -161,8 +174,8 @@ function convertImage(source: string, slug: string): MediaEntry {
 
 function convertVideo(source: string, slug: string): MediaEntry {
   const src = join(sourceDir, source);
-  const { width } = probeSize(src);
-  const filter = scaleFilter(width, MAX_VIDEO_WIDTH, true);
+  const { width, height } = probeSize(src);
+  const filter = scaleFilter(width, encodeWidth(width, height, true), true);
 
   const mp4 = join(outDir, `${slug}.mp4`);
   const webm = join(outDir, `${slug}.webm`);
@@ -180,6 +193,18 @@ function convertVideo(source: string, slug: string): MediaEntry {
   ffmpeg(['-i', src, '-vf', filter, '-c:v', 'libx264', '-crf', '30', '-preset', 'slow',
     '-tune', 'animation', '-pix_fmt', 'yuv420p', '-an', '-movflags', '+faststart', mp4]);
 
+  // THE WEBM MUXER IS NOT REPRODUCIBLE, and that matters here more than it
+  // usually would. It writes a random 8-byte SegmentUID into the header, twice,
+  // so re-running this script rewrites sixteen bytes of every clip whose video
+  // data is identical — same size, same frames, different file. Under
+  // `public/_headers` these names are served `immutable` for a year, so
+  // committing those sixteen bytes would burn the cache of every returning
+  // reader for nothing. After any run, `git checkout` the .webm files whose
+  // slugs did not change; the mp4s and the WebPs are deterministic and need no
+  // such care. `-fflags +bitexact` fixes it properly by zeroing the UID, and is
+  // the right thing to add the next time the clips are re-cut for a real
+  // reason — it cannot be added on its own, because doing so would itself
+  // change every clip's bytes under its existing name.
   ffmpeg(['-i', src, '-vf', filter, '-c:v', 'libvpx-vp9', '-crf', '42', '-b:v', '0',
     '-row-mt', '1', '-deadline', 'good', '-cpu-used', '2', '-pix_fmt', 'yuv420p', '-an', webm]);
 
@@ -198,10 +223,12 @@ function convertVideo(source: string, slug: string): MediaEntry {
   // than the video. It buys 29 percent of the payload for a still that was
   // never the limiting factor.
   //
-  // The width is deliberately not touched. Encoding these at the 864px the
-  // figure renders at would save twice as much and cost SSIM 0.92 on the busy
-  // clips, and it would hand a reader with JavaScript off a 1x image on a 2x
-  // screen — that one is a degraded document rather than a quieter one.
+  // The width is deliberately not reduced further. The poster shares the clip's
+  // own transcode width, which is now `encodeWidth`'s answer rather than a flat
+  // cap; encoding it instead at the width the figure renders would save twice as
+  // much, cost SSIM 0.92 on the busy clips, and hand a reader with JavaScript
+  // off a 1x image on a 2x screen — a degraded document rather than a quieter
+  // one.
   ffmpeg(['-i', src, '-vf', filter, '-frames:v', '1', '-c:v', 'libwebp', '-lossless', '0',
     '-quality', '50', '-compression_level', '6', poster]);
 

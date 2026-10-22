@@ -1,53 +1,231 @@
 /* Rise&Shine devlog — inlined into the page by tools/devlog/build.ts.
  *
- * Paper and ink. The only job here is to be read: one column at a comfortable
+ * Muted earth. The only job here is to be read: one column at a comfortable
  * measure, an old-style serif from the system stack, hairlines instead of
  * boxes, and no motion the reader did not ask for. Nothing is justified,
  * nothing has a shadow, nothing is a card.
+ *
+ * The ground used to be paper-and-ink — a warm off-white and a near-black — and
+ * that was only ever a description of a default. PRODUCT.md settled it on
+ * 16 August 2026: muted earth is the palette, and paper is a material rather
+ * than a colour scheme. So the page keeps the material (a stock you print on,
+ * hairlines, no boxes) and gives up the pretence that the stock is white.
  *
  * No webfonts. Self-hosting one is a licensing decision that has not been made,
  * and a reading page that blocks on a font download is worse than one set in
  * Charter. */
 
+/* Colour comes in three cases, not two.
+ *
+ * `:root` is the light page. The media query is what a reader gets with no
+ * JavaScript and is the only thing that ran before the theme button existed —
+ * `:not([data-theme='light'])` is the whole reason the button can force light
+ * back on a dark machine. `:root[data-theme='dark']` is the same palette asked
+ * for by hand.
+ *
+ * The two dark blocks are duplicates on purpose: one is a media query and one
+ * is a selector, and CSS has no way to say both in one rule. They have to stay
+ * identical, so change them together. */
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
 
-  --paper: #faf6ee;
-  --ink: #1b1a17;
-  --muted: #6d6a62;
-  --accent: #b4432c;
-  --rule: #e5decd;
-  --rule-strong: #cec5b0;
-  --sunk: #f3eede;
+  /* Muted earth. `--paper` and `--ink` are the two the ground was decided as;
+     everything else is derived from them and measured, not eyeballed.
+
+     `--muted` and `--accent` are one step darker than the values the ground was
+     specified with (#8a7d68 and #a5673f). Those measured 3.28:1 and 3.71:1 on
+     this paper, both under the 4.5:1 secondary text needs. Hue and chroma are
+     untouched — only lightness moved — so they are the same two colours, a step
+     down. The step they had to clear is not the paper but `--sunk`: `.motion-stub`
+     sets muted text on the sunk panel and takes the accent on hover, and sunk is
+     8% down from the paper, so a value that just scrapes 4.5 against the page
+     fails against the one surface it actually has to survive. Measured against
+     sunk they are 4.57:1 and 4.55:1; against paper, 4.91:1 and 4.90:1. */
+  --paper: #efe7d8;
+  --ink: #3a332a;
+  --muted: #6e614d;
+  --accent: #90542c;
+  /* The surfaces, each a step of the same pigment rather than a grey laid over
+     it: sunk 1.08:1 from the paper, rule 1.24:1, rule-strong 1.59:1 — the same
+     three intervals the old palette used, restated in this hue. A neutral grey
+     hairline on an earth ground reads as dirt on the page.
+
+     `--slip` is the fourth and it goes the other way: 1.09:1 ABOVE the paper,
+     where sunk is 1.08:1 below it. That direction is the whole meaning of the
+     token. A code block is a hole cut in the page and a mount is a recess; an
+     aside is a scrap laid on top, and something on top of a page catches more
+     light than the page does. Same interval, opposite sign, and a reader can
+     tell the two kinds of interruption apart without being told.
+     It is also very slightly less chromatic than the ground — a fresher stock
+     on an aged one. Ink measures 11.07:1 on it, muted 5.37:1 and the link
+     underline 3.63:1, all of which are better than the same text on the paper,
+     so the aside costs nothing in legibility. */
+  --rule: #dcd0b9;
+  --rule-strong: #c6b89d;
+  --sunk: #eadfc8;
+  --slip: #f7f1e5;
   /* The link underline is the only thing telling fifty-eight outbound links
      apart from the prose around them, since link text is `inherit`. The old
      value measured 1.96:1 on paper — under half of what technique G183 asks of
      a non-text distinction, and close enough to invisible on a dim screen that
-     the page read as though it had no links in it. */
-  --underline: #c07b62;
+     the page read as though it had no links in it. A tint of the accent: same
+     hue, about three fifths its chroma, lighter. 3.33:1 here, where the fix
+     that established this floor measured 3.12:1. It is set against `--sunk`
+     rather than against the paper — 3.09:1 there — so that the day a link ever
+     lands inside an inline `<code>` the distinction is still legal. No link
+     does today; a value chosen against the paper alone would have been 3.15:1
+     on the page and 2.93:1 the moment one did. */
+  --underline: #9d755e;
+  /* The one colour in the syntax theme that was not already on the page.
+     Derived, not chosen: `--accent` rotated 80 degrees around OKLCH — a quarter
+     turn and a little, which takes terracotta to moss and is the other pigment
+     an earth palette already owns — at three quarters of the accent's chroma,
+     with its lightness then solved so that it measures the SAME contrast on
+     `--sunk` as the accent does. `--sunk` is the code block's ground and is the
+     only surface either of them is ever drawn on, so that is the number the
+     solve targets: 4.55:1 here, against the accent's 4.55:1. Every other value
+     in the theme is a token that already existed and was already measured. */
+  --code-lit: #526a3f;
 
   --serif: 'Sitka Text', Charter, 'Iowan Old Style', Constantia, Georgia, serif;
   --mono: ui-monospace, 'Cascadia Mono', 'SF Mono', 'Segoe UI Mono', Menlo, Consolas, monospace;
 
-  /* ~68 characters at the body size. Anything wider and the eye loses the
-     start of the next line on the return sweep. */
-  --measure: 40rem;
-  --wide: 54rem;
+  /* ~76 characters at the body size, measured off the rendered line boxes of
+     THIS page rather than off the same prose in isolation. That distinction
+     cost a day: measured as plain text, 860 at 18.5px reads ~86 characters, and
+     every figure quoted during the tuning was that number. The article is full
+     of inline `<code>`, which is mono and eats far more of a line than the
+     serif around it, so the page a reader actually meets runs about ten
+     characters shorter than its own text does stripped. Measure the page.
 
-  /* Rail width and the air between it and the reading column. Named because
-     the wide breakpoint below is derived from them, not guessed. */
-  --rail: 12.5rem;
-  --rail-gap: 2.5rem;
+     The number is only half a decision: characters-per-line is a ratio of the
+     column to the type, so it says nothing about how big either one is. Tani
+     chose 18.5px at 860 by dragging both against the real layout, which is the
+     only way that comparison can honestly be made.
+     What the wider column costs is picture fidelity, and it is a real cost. A
+     flush figure renders at `min(native, measure)`, so any figure a little
+     wider than the column takes a shallow non-integer downscale: all the
+     softening of a resample and none of the size change. The band is roughly
+     `measure < w < measure / 0.79`, and where it lands decides which of this
+     article's captures are softened. At 740 three fall inside it and at 640
+     one did. See `MOUNT_INNER_PX` in embeds.ts, which carries the figures.
+     `--measure` is the page's only content width, and now the page grid's
+     `main` track as well. There used to be a second, wider token: the article
+     sat at the measure inside an 864px track, so the block a reader sees was
+     112px left of the viewport's centre while the empty right-hand band pushed
+     the day rules, the masthead rule and the colophon rule out past the text.
+     One column for everything, centred, is the whole layout. */
+  --measure: 53.75rem;
+
+  /* The rail and the air between it and the reading column. Their sum is what
+     the wide breakpoint below is derived from, so it is not a free number: a
+     centred column needs this much room on BOTH sides, and the empty left
+     gutter is the price of the text being in the middle.
+
+     18rem is generous for the type it holds — the longest entry, "Health,
+     Damage and Respawns", needs about 230px including its indent, and this is
+     288. The slack is deliberate: at 15rem those entries sit one word from
+     wrapping, and a contents list that reflows as the type ramp moves is a
+     list that looks broken at one breakpoint out of three.
+
+     The cost is stated plainly under the breakpoint. */
+  --rail: 18rem;
+  --rail-gap: 4rem;
+
+  /* The masthead's rule and the rule under `Contents` are one horizontal line
+     with a gutter cut out of the middle of it, so there is one number: how far
+     down the page that line sits. Everything else is the geometry of the two
+     boxes that have to reach it — the masthead pads its identity block down to
+     it, the rail is offset up so its label's underline lands on it. Tuning two
+     offsets until they happened to agree would be the same line by luck, and
+     the next edit to either box would break it silently.
+     Only used at the wide breakpoint; below it the rail is above the article
+     and there is nothing across the gutter to align to.
+
+     `--head-hair` is that line's width, and it is a token rather than a literal
+     `1px` because three separate things are placed from it and they have to
+     move together. The masthead's half is a border-TOP, which BEGINS at the
+     shared line; the rail's is a border-BOTTOM, which ENDS at it. So a rail
+     offset of exactly `--head-rule` puts the two hairlines one width apart —
+     adjacent rather than collinear, which is what they had been. The rail's box
+     runs one hairline lower, and then both bands are the same band.
+     The drawn line that replaces them is centred on that band's lower edge,
+     because that is where an absolutely positioned child of either box lands:
+     `inset-block-start: 0` inside the award is the top of its padding box, one
+     hairline below its border-box top, and `inset-block-end: -var(--head-hair)`
+     inside the rail's label is the same point measured the other way. Both
+     halves therefore sit on one y, which is the whole job. */
+  --head-rule: 19rem;
+  --head-hair: 1px;
+  --masthead-top: 3rem;
+  --award-gap: 1.75rem;
+  --head-label: 1.5rem;
 
   /* Type scale. Four steps on roughly a 1.3 ratio so each level reads as a
-     level rather than as a slightly different size. The sub-head is the one
-     that had to be stated deliberately: it was set below the body size, which
-     is why it read as a caption. It now sits just above it and does the rest
-     of its work through weight, case and the space above it. */
+     level rather than as a slightly different size.
+     The sub-head is the one that had to be stated deliberately: it was set
+     below the body size, which is why it read as a caption. What matters is
+     not the number but the ratio to the body — it is uppercase mono against
+     lowercase serif, so its cap height is what the eye compares to the body's
+     x-height, and nine tenths of the body size is where those two stop being
+     the same height. That ratio was a fixed rem against a fluid body until the
+     body went up to 20px, at which point the sub-head fell back under it and
+     was a caption again. Both ramps are stated the same way now, and they
+     reach their ceilings at the same viewport width, so the relationship holds
+     at every size instead of at one.
+
+     The two body-relative levels are written as literal multiples of the body
+     ramp rather than as numbers that happen to agree with it:
+
+       --t-head = 1.475 x body   clamp(1rem, 0.35vw + 0.9rem, 1.15625rem)
+       --t-sub  = 1.02  x body
+
+     which is why the coefficients look unrounded.
+
+     THIS MECHANISM ALREADY FAILED ONCE, and the failure is worth stating
+     because the comment that stood here claimed it could not. The multiples
+     were correct against the ramp they were written for. The body's ramp then
+     changed — 21px down to 18.5px — and the multiples stayed pointed at the
+     old one, so `--t-head` quietly became 1.48x the body where the file said
+     1.3, and `--t-sub` 1.02x where it said 0.9. Writing a token as a multiple
+     does not make it track anything; it only records what the multiple was on
+     the day it was written. Changing the body ramp means rewriting these two,
+     and nothing enforces that but this paragraph.
+
+     The RENDERED sizes were kept and the description corrected, not the other
+     way round, because the page has been looked at and approved at these
+     sizes and they are the better ramp: 52 / 38 / 27.3 / 18.9 / 18.5 steps by
+     about 1.4 at every level, where the documented 1.3 would have put the
+     section head at 24px and bunched it against the sub-head.
+
+     The sub-head sitting a hair ABOVE the body rather than below it is the
+     point, not an accident of the drift. It is uppercase mono against
+     lowercase serif, so the eye compares its cap height to the body's
+     x-height; at nine tenths of the body size those two stop being the same
+     height and it reads as a caption rather than a heading. That was a real
+     defect once, found in an audit, and 1.02x is the fix holding.
+
+     `--t-day` and `--t-title` are display sizes and are deliberately NOT
+     body-relative. They were drawn against an 18px body, and the return to
+     18.5px has put them back within a whisker of the proportions they were cut
+     at: the day date is 2.05x the body where it was drawn at 2.11x, and the
+     masthead title 2.81x where it was drawn at 2.89x. */
   --t-title: clamp(2.4rem, 4.6vw, 3.25rem);
   --t-day: clamp(1.9rem, 2.4vw + 1.1rem, 2.375rem);
-  --t-head: clamp(1.375rem, 0.8vw + 1.2rem, 1.5rem);
-  --t-sub: 0.95rem;
+  --t-head: clamp(1.475rem, 0.516vw + 1.3275rem, 1.7055rem);
+  --t-sub: clamp(1.02rem, 0.357vw + 0.918rem, 1.1794rem);
+
+  /* The contents rail, at 0.75 of the body ramp — a multiple like the two
+     above, not a fixed size that happened to agree with an older body.
+     It was 0.78rem flat, which sat reasonably against an 18px body and then
+     stayed put when the body went to 21px. At 0.6 of the body the rail and the
+     article stopped looking like one document.
+
+     0.75 rather than something closer to parity because this is mono against
+     serif: a monospace face carries far more of its em in cap height, so
+     matching the two by pixel size makes the rail look the larger of the
+     two. Judged by looking, not calculated. */
+  --t-rail: clamp(0.75rem, 0.2vw + 0.7rem, 0.8375rem);
 
   /* Vertical rhythm: 80 / 48 / 30 px. Three intervals with real distance
      between them, so a day reads as a page turn, a section as a break and a
@@ -58,19 +236,65 @@
   --gap-sub: 1.9rem;
 }
 
+/* Dark, case two: the machine asked for it and the reader has not said
+   otherwise. Keep in step with the block below. */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --paper: #111316;
-    --ink: #e9e6e1;
-    --muted: #8a9099;
-    --accent: #e07a5f;
-    --rule: #262a2f;
-    --rule-strong: #363c43;
-    --sunk: #171a1e;
-    /* 3.55:1 against the dark paper, where the old value was 2.18:1. Still far
-       quieter than the accent a hovered link takes, which is 6.31:1. */
-    --underline: #9a5c4a;
+  /* `:where()` around the negation, which is not decoration: it holds this
+     selector at the weight of a bare `:root`, and the print block at the bottom
+     of this file restates the palette for ink on paper from a bare `:root` too.
+     Written plainly, `:root:not(...)` outweighs it, and a reader on a dark
+     machine prints `#e9e6e1` text onto white paper — a blank sheet, which is
+     the exact bug the print block was written to fix. */
+  :root:where(:not([data-theme='light'])) {
+    color-scheme: dark;
+
+    /* Derived, not inverted. Muted earth's dark is a warm dark: a brown-black
+       ground and a warm off-white ink, the same pigment seen with the light
+       off. The old dark was blue-black — its muted and its three surfaces all
+       sat around hue 255 — and dropping the new accent onto that would have put
+       a warm terracotta on a cold ground, which is the giveaway of a palette
+       that was flipped rather than designed.
+       Every step is the interval the light scheme uses, restated against the
+       dark ground: sunk 1.07:1, rule 1.29:1, rule-strong 1.67:1, muted 5.69:1,
+       accent 6.20:1, ink 14.58:1. */
+    --paper: #1a1613;
+    --ink: #ebe7df;
+    --muted: #979085;
+    --accent: #d38551;
+    --rule: #322b26;
+    --rule-strong: #443c36;
+    --sunk: #211d19;
+    /* Lifted rather than sunk, 1.17:1 above the dark ground where sunk is
+       1.07:1 below it. The step is a shade larger than the light scheme's 1.09
+       because a dark ground swallows small steps; ink measures 12.59:1 on it and
+       the link underline 3.12:1, which is the tightest number on the slip and
+       still clears the 3:1 that G183 asks of a non-text distinction. */
+    --slip: #2a2319;
+    /* 3.61:1 against the dark paper, where the value this floor was fixed at
+       measured 3.55:1 and the one before that 2.18:1. Still far quieter than
+       the accent a hovered link takes, which is 6.20:1. */
+    --underline: #946547;
+    /* The same derivation as the light one — the accent rotated 80 degrees, at
+       three quarters of its chroma, solved to the accent's own contrast on this
+       scheme's `--sunk`. 5.81:1, against the accent's 5.77:1. */
+    --code-lit: #80a269;
   }
+}
+
+/* Dark, case three: the reader asked for it. Identical to the block above. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --paper: #1a1613;
+  --ink: #ebe7df;
+  --muted: #979085;
+  --accent: #d38551;
+  --rule: #322b26;
+  --rule-strong: #443c36;
+  --sunk: #211d19;
+  --slip: #2a2319;
+  --underline: #946547;
+  --code-lit: #80a269;
 }
 
 * {
@@ -93,7 +317,28 @@ body {
   margin: 0;
   background: var(--paper);
   color: var(--ink);
-  font: 400 clamp(1rem, 0.3vw + 0.95rem, 1.125rem) / 1.7 var(--serif);
+  /* 16px on a phone to 21px from 933px up, and 21px is the size the measure
+     above was measured at. Size and column move together or not at all: 21px
+     in 740 and 18px in 640 both set ~73 characters, so this is a larger face
+     at the same words per line rather than a denser page. An earlier 17→20
+     ramp got this backwards — it took characters off the line to buy the size,
+     which is the trade this one refuses to make.
+     The ramp keeps its shape and only its ceiling moved. The floor is 16px,
+     which is the smallest a phone should be asked to read a 6,000-word article
+     at, and both ends still land where they did: 16px at a 267px viewport,
+     the ceiling at 933px. Solving for the line through those two points is
+     where 0.75vw + 0.875rem comes from — it is derived, not dialled in.
+
+     LEADING IS UNCONFIRMED. 1.9 was chosen against an 18px body, where it is
+     34.2px; carried to 21px it would be 39.9px, which is a lot of air for a
+     paragraph and starts to read as separated lines rather than as text. The
+     specimen rung Tani actually picked at 21px was set at 1.68. 1.75 is
+     between the two and it is a judgement, not a measurement: it holds 36.8px,
+     a shade more than the page has been reading at, which the ~73-character
+     line still needs, without the 21px face turning the block loose. He has
+     not restated a number since choosing the size, so this is the one value on
+     the page waiting on him. */
+  font: 400 clamp(1rem, 0.35vw + 0.9rem, 1.15625rem) / 1.6 var(--serif);
   /* `oldstyle-num` — the singular — is not a keyword, so this declaration was
      dropped and the old-style figures it asks for were never rendering. */
   font-variant-numeric: oldstyle-nums;
@@ -101,20 +346,153 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/* ----------------------------------------------------------- scrollbars --- */
+
+/* Two of them: the document's, and the contents rail's own. Left at the
+ * platform default they are the only grey objects on an earth page, and on the
+ * rail the default one is wider than the indent the list is built on.
+ *
+ * The rail's is on its LIST rather than on the rail itself: the label is outside
+ * the scrolling box now — see the `.toc` block under the wide breakpoint — so the
+ * box that scrolls, and the box that owns the scrollbar, is `.toc > ol`.
+ *
+ * The thumb is ink at half strength rather than one of the surface tokens.
+ * `--rule-strong` is 1.59:1 against the paper, which is right for a hairline
+ * and wrong for something a person has to find and grab; half-strength ink
+ * lands near 3:1, which is the floor for a control. Mixing rather than naming a
+ * colour also means the dark scheme gets its own value for free — it is ink on
+ * paper in both, and neither has to be maintained.
+ *
+ * The document scrollbar keeps its platform width on purpose. `thin` would be
+ * tidier and this page is 46,000px long: a narrow thumb on a very long document
+ * is a smaller target for the one gesture most likely to be used in a hurry.
+ * The rail is 288px of list and takes `thin`, where the trade runs the other
+ * way. */
+:root {
+  scrollbar-color: color-mix(in srgb, var(--ink) 50%, transparent) transparent;
+}
+
+.toc > ol {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--ink) 38%, transparent) transparent;
+}
+
 /* ---------------------------------------------------------------- links --- */
+
+/* The underline is drawn, by the same hand as the day rule and the masthead
+ * rule — two repeating tiles, generated by tools/devlog/hand.js and baked into
+ * this page as data URIs by build.ts. The four `--link-rule-*` values and the
+ * three `--link-tile-*` measurements are written into the stylesheet directly
+ * beneath this file; everything that decides how they are used is here.
+ *
+ * WHY A BACKGROUND AND NOT AN SVG. A link is the only element on this page that
+ * wraps. Half of a two-line link would be on the next line with nothing under
+ * it, so the treatment has to be something that repeats — plus
+ * `box-decoration-break: clone`, which is what gives the second fragment its own
+ * copy rather than a slice of the first one's.
+ *
+ * WHY TWO TILES. One tile is periodic, and a period a reader can see across
+ * fifty-eight links is wallpaper rather than a hand. 97 and 131 are coprime, so
+ * the pair does not come back into phase for 12,707px. drawn-rules.js then gives
+ * every link its own starting offset into both, because otherwise all
+ * fifty-eight would open on the same three centimetres of line and most links
+ * here are one or two words long.
+ *
+ * WHAT THIS COSTS, STATED RATHER THAN DISCOVERED LATER. A drawn line cannot skip
+ * ink: `text-decoration-skip-ink` broke the real underline around a descender
+ * and this passes straight through the tail of a `g`. That is what a line ruled
+ * under printed text by hand actually does, and at 3.33:1 against a descender at
+ * full ink the descender is plainly the darker of the two — but it is a change,
+ * and it is the one thing to look at before keeping this.
+ *
+ * THE COLOUR IS UNCHANGED. Both tiles are one solid `--underline` with no alpha
+ * anywhere, and the compositor unions them rather than blending them, so the
+ * 3.33:1 that was measured for the hairline is the contrast of the drawing too.
+ * The hover and focus state swaps both tiles for their `--accent` twins, which
+ * is the same state change the `text-decoration-color: currentColor` rule used
+ * to make, drawn instead of stroked.
+ *
+ * NOTHING MOVES. Vertical padding on a non-replaced inline box does not affect
+ * the line box, and this does not use any: the tile is placed from the bottom of
+ * the link's own box with `calc(100% + --link-drop)`, so there is no geometry
+ * here for a layout to notice. `--link-drop` is in em so the line follows the
+ * body's clamp from 16px to 21px the way `text-underline-offset` used to.
+ *
+ * AND IT IS TURNED OFF THREE TIMES, at the bottom of this section: more
+ * contrast, forced colours and print all get the real `text-decoration` back. A
+ * background image is not painted in forced colours and is not printed by
+ * default, and fifty-eight links with nothing under them are fifty-eight links
+ * indistinguishable from the prose around them. */
+:root {
+  /* How far below the bottom of a link's own box the centre of the drawn line
+     sits. Not chosen: measured. The old `text-underline-offset: 0.18em` put the
+     centre of mass of the hairline 0.53px under the bottom of the link's own
+     box in Sitka Text at 21.3px, and this is the number that puts the centre of
+     mass of the drawing in the same place, to within a twentieth of a pixel. So
+     turning the treatment on does not move the underline.
+     Stated in em rather than px because the body runs on a clamp from 16px to
+     21px and the old offset was in em too — the line has to travel with the
+     type or it detaches from small text and crowds large. */
+  --link-drop: 0.0686em;
+
+  /* And the room the drawing needs underneath.
+     A background is clipped to the element's own box and a text decoration is
+     not, so a drawn line sitting where the hairline sat has its bottom quarter
+     of a pixel cut off — and a hand-drawn line with a dead straight edge along
+     the underside of it is worse than no hand at all. This is the padding that
+     stops that. Vertical padding on a non-replaced inline box does not affect
+     the line box, so it buys the room for nothing: no reflow, no CLS, no
+     change to where a single glyph sits. Its only visible effect is that a
+     focused link's outline now clears the drawing rather than crossing it. */
+  --link-pad: 0.12em;
+}
 
 a {
   color: inherit;
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-decoration-color: var(--underline);
-  text-underline-offset: 0.18em;
+  text-decoration: none;
+  background-image: var(--link-rule-a), var(--link-rule-b);
+  background-repeat: repeat-x;
+  background-size:
+    var(--link-tile-a) var(--link-tile-h),
+    var(--link-tile-b) var(--link-tile-h);
+  padding-bottom: var(--link-pad);
+  background-position-x: 0, 0;
+  background-position-y:
+    calc(100% - var(--link-pad) + var(--link-drop)),
+    calc(100% - var(--link-pad) + var(--link-drop));
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
 }
 
 a:hover,
 a:focus-visible {
   color: var(--accent);
-  text-decoration-color: currentColor;
+  background-image: var(--link-rule-a-on), var(--link-rule-b-on);
+}
+
+/* The hairline comes back, twice over. A reader who asked for more contrast
+   asked for a line and not a drawing; forced colours does not paint background
+   images at all, and a browser does not print them either, so in both of those
+   the drawn version is not a quieter link but no link. `text-decoration` is the
+   one underline the system will always honour, and under forced colours it also
+   takes the system's own link colour, which is the point of the mode. */
+@media (prefers-contrast: more), (forced-colors: active) {
+  a {
+    background-image: none;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-decoration-color: var(--underline);
+    text-underline-offset: 0.18em;
+  }
+
+  a:hover,
+  a:focus-visible {
+    text-decoration-color: currentColor;
+  }
+
+  .toc a {
+    text-decoration: none;
+  }
 }
 
 :focus-visible {
@@ -127,11 +505,15 @@ a:focus-visible {
   left: -9999px;
 }
 
+/* `background-color`, not the `background` shorthand: the shorthand resets
+   `background-image` too, and the underline is a background image now, so the
+   one link on the page that is a control would have been the one link with
+   nothing under it. */
 .skip:focus {
   left: 1rem;
   top: 1rem;
   z-index: 10;
-  background: var(--paper);
+  background-color: var(--paper);
   padding: 0.6rem 1rem;
   border: 1px solid var(--ink);
   font: 500 0.8rem var(--mono);
@@ -149,6 +531,11 @@ a:focus-visible {
  * sharing it. Taking the rail out of the reading column's track is the whole
  * fix; centring follows for free.
  *
+ * `main` then kept the old 54rem width even after every child of it had moved
+ * in to the measure, which put the block a reader actually sees 112px
+ * left of the viewport's centre — the same off-centre bug one level down.
+ * `main` is the measure now, and there is nothing wider than it on the page.
+ *
  * `full` spans the viewport's usable width, `main` is the reading column. The
  * gutters are equal 1fr tracks, which is what keeps `main` centred no matter
  * what the rail does.
@@ -157,7 +544,7 @@ a:focus-visible {
   display: grid;
   grid-template-columns:
     [full-start] minmax(0, 1fr)
-    [main-start] min(var(--wide), 100%) [main-end]
+    [main-start] min(var(--measure), 100%) [main-end]
     minmax(0, 1fr) [full-end];
   padding-inline: clamp(1.25rem, 4vw, 3rem);
   padding-bottom: 6rem;
@@ -180,21 +567,29 @@ a:focus-visible {
  * needs that width on BOTH sides — the empty left gutter is the price of the
  * text being centred, and it is the price the previous layout refused to pay.
  *
- *   54rem column + 2 x (2.5rem gap + 12.5rem rail) + 2 x 3rem page padding
- *   = 90rem = 1440px
+ *   46.25rem column + 2 x (4rem gap + 12.5rem rail) + 2 x 3rem page padding
+ *   = 85.25rem = 1364px
  *   + 1rem for the scrollbar
- *   = 91rem = 1456px
+ *   = 86.25rem = 1380px
+ *   rounded up to a whole rem
+ *   = 87rem = 1392px  (superseded: the rules now use 105rem — see below)
  *
  * The scrollbar term is not slack. A media query measures the viewport and
- * layout gets the viewport minus the classic scrollbar, so at exactly 1440 the
- * rail was laid out in 1424px of room and took its last 16px out of the page's
- * right padding — 48px of air became 40.5. One rem covers the widest scrollbar
- * Windows draws; where the platform overlays its scrollbar instead, the term
- * costs 16px of extra air on the right and nothing else.
+ * layout gets the viewport minus the classic scrollbar, so at exactly 1364 the
+ * rail would be laid out in 1348px of room and take its last 16px out of the
+ * page's right padding — 48px of air becoming 32. One rem covers the widest
+ * scrollbar Windows draws; where the platform overlays its scrollbar instead,
+ * the term costs 16px of extra air on the right and nothing else.
+ *
+ * It has been 91rem, 84rem, 80rem and now 87rem, once per change to the column:
+ * the rail needs whatever the column needs plus its own two sides, so this
+ * number is never chosen, only recomputed. Holding an old one either hides a
+ * rail that fits or shows one that does not. Round the sum up, never down —
+ * down is the case where the rail appears before there is room for it.
  *
  * Under that, the spine. It is one number: lower `--rail` to bring the rail
  * back at narrower widths, at the cost of the longest entries wrapping. */
-@media (min-width: 91rem) {
+@media (min-width: 105rem) {
   /* `display: contents` promotes the rail and the article into the page grid
      so both can address its named columns. The wrapper is a plain div, so it
      carries no role for this to dissolve. */
@@ -210,7 +605,6 @@ a:focus-visible {
     grid-row: 1;
   }
 
-  .toc,
   .prose {
     grid-row: 2;
   }
@@ -220,6 +614,17 @@ a:focus-visible {
   }
 
   .toc {
+    /* Spanning the masthead's row as well as the article's is what lets the
+       rail start beside the masthead instead of below it. `align-self: start`
+       keeps it at the top of that span; the offset then drops its label's
+       underline onto the same line the award rule draws. */
+    grid-row: 1 / 3;
+    align-self: start;
+    /* Plus one hairline: see `--head-hair` at the top of this file. The
+       masthead's half of the head rule is a border-top and this one is a
+       border-bottom, so the rail's box has to end one width lower for the two
+       to occupy the same band rather than two adjacent ones. */
+    margin-top: calc(var(--head-rule) - var(--head-label) + var(--head-hair));
     grid-column: main-end / full-end;
     justify-self: start;
     width: var(--rail);
@@ -227,36 +632,196 @@ a:focus-visible {
     position: sticky;
     top: 3rem;
     max-height: calc(100vh - 6rem);
-    overflow-y: auto;
-    /* `overflow-y: auto` forces `overflow-x` to clip, and the links sit flush
-       with the rail's content box, so a focus ring drawn 3px outside a link
-       came out as two horizontal bars with no ends. Five pixels of inside air
-       is exactly what the ring needs — 3px of offset plus its own 2px.
-       Padding rather than a wider rail, because the rail's own box is what the
-       breakpoint above is derived from and widening it would push it back into
-       the page's right padding. The price is 190px of text instead of 200,
-       which takes the entries that wrap to two lines from four to six of
-       forty-one. `overflow-clip-margin` would have cost nothing, but it only
-       applies to `overflow: clip`, and `clip` beside a scrolling axis computes
-       to `hidden` — checked, not assumed. */
-    padding-inline: 5px;
+    /* THE LABEL IS NOT IN THE SCROLLING BOX, and that is the fix for a real bug
+       rather than a preference. `overflow-y: auto` used to sit here, which put
+       `Contents` and its half of the head rule INSIDE the box that scrolls: read
+       to the bottom of the article and back to the top and the rail was left at
+       `scrollTop: 248` with the label 248px above its own scrollport, gone and
+       with nothing to bring it back. toc.js only ever moves the rail when the
+       CURRENT entry is out of view, and at the top of the page there is no
+       current entry at all, so nothing was ever going to scroll it home. Even
+       if something had, `scroll-margin-block: 1.25rem` is 20px against a label
+       that stands 36px above the first entry including its margin, so the best
+       that mechanism could do was leave 16px of it cut off.
+       Measured, not read off the stylesheet: see the repro note in the report.
+
+       So the rail is a column of two boxes — a label that does not move and a
+       list that does. A contents label cannot scroll away from its own contents
+       if it was never in the same box as them. */
+    display: flex;
+    flex-direction: column;
   }
+
 }
 
 /* ------------------------------------------------------------- masthead --- */
 
+/* THE MASTHEAD IS ON THE RAMP NOW, and that sentence is the whole of this
+ * rewrite. It used to take `--t-title` from the type scale and hard-code
+ * everything else: four mono sizes inside 60px of each other, a tagline fixed
+ * in rem against a body that runs on a clamp, a byline set smaller than the
+ * body it introduces, seven bespoke vertical intervals against an article
+ * rhythm of three declared tokens, and five colour changes down six rows. That
+ * is the same mechanism the type-scale note at the top of this file records as
+ * having already failed once — a number written against a ramp it does not
+ * track — repeated six times in one block.
+ *
+ * What it is instead: three tiers, five sizes, all five from the ramp.
+ *
+ *   the work      `--t-title` serif, and a deck at 1.15em of the body, which
+ *                 is the same mechanism `.lede` uses and the only one that
+ *                 keeps its ratio at every viewport
+ *   the author    `--t-sub` mono, ink, which makes his name the third largest
+ *                 thing here instead of the fourth and larger than the body
+ *                 rather than smaller — on a document that argues authorship
+ *   the record    the slip: `--t-rail` mono against the rail's own label size,
+ *                 two columns, one leading, one tracking
+ *
+ * TWO MONO VOICES, AND NOW A RULE FOR THEM. Uppercase at 0.14em is a LABEL —
+ * it names the thing beside it, and it is the same voice, size and tracking as
+ * `Contents` at the other end of the head rule. Sentence case at 0.03em is a
+ * RECORD — it states a fact. Those two are the only mono roles in the masthead
+ * and the rail, and every mono run on this page now tracks somewhere in
+ * 0.03–0.16em. `.byline` and `.meta` were the two exceptions at `normal`, on a
+ * page whose PRODUCT.md makes generous tracking an accessibility commitment.
+ *
+ * TWO COLOURS. Ink states, muted describes and labels. The accent is gone from
+ * the masthead's running text entirely — it is in the band's tone ramp instead,
+ * where a colour that is not text cannot be under a contrast floor. */
+
 .masthead {
-  max-width: var(--wide);
-  padding: 3rem 0 0;
+  /* The band's containing block, and its own stacking context so that a child
+     at `z-index: -1` lands behind this header's content and no further. Without
+     the isolation it would go behind the page's background instead, which is
+     the one place a picture cannot be seen from. */
+  position: relative;
+  isolation: isolate;
+  /* The band is a fixed-width picture and the page is what crops it — see
+     `.band` below — so on a narrow viewport it runs off the right of this box.
+     `clip` rather than `hidden` because `hidden` would make this a scroll
+     container, and `overflow-x` alone because the drawn rule under the slip is
+     out of flow and reaches half a hairline above its own box. */
+  overflow-x: clip;
+  padding: var(--masthead-top) 0 var(--gap-head);
 }
 
-.masthead-up {
-  font: 500 0.75rem var(--mono);
-  letter-spacing: 0.08em;
-  color: var(--muted);
-  text-transform: uppercase;
-  display: block;
-  margin-bottom: 2.25rem;
+/* ----------------------------------------------------------- the band --- */
+
+/* The screen behind the masthead. banner.js owns everything inside this box —
+ * see the header of that file, which is where the whole mechanism is written
+ * down — and page.css owns the box.
+ *
+ * GEOMETRY, AND WHY IT IS THIS BOX. The band is 860px wide — the reading column
+ * at the root size the page is set at — and it stays 860 at every viewport. At
+ * the desk that puts the picture's right edge exactly where the head rule, the
+ * day rules, the prose and the colophon all stop. That edge is hard by
+ * construction: the fade is horizontal and is at its most open on the right, so
+ * the only two choices are to bleed the band off the viewport or to cut it
+ * somewhere. Cutting it on the page's own margin is not a cut, it is an
+ * alignment.
+ *
+ * THE WIDTH IS FIXED BECAUSE THE PICTURE IS. It is 635px of pixel art at native
+ * scale, anchored to the band's right edge, and the fade is measured across the
+ * picture rather than across the band. So the distance from the right edge at
+ * which a given tone appears is a constant — measured on this build, 3:1
+ * survives to 148px from that edge and 4.5:1 to 236px, at every band width
+ * there is. A band that shrank with the viewport would therefore drag the
+ * picture leftwards INTO the type: at a 350px band the title sits on 1:1, which
+ * is the picture drawn straight through it. Holding the width holds the
+ * picture still relative to the words, and the phone simply sees less of it —
+ * the plate is wider than the sheet, which is the honest thing for a plate to
+ * be and costs the reader nothing but the quiet end of a picture. `.masthead`
+ * clips the overflow.
+ *
+ * Its height is `--head-rule`, which makes its lower edge the drawn head rule.
+ * That is the composition rather than a coincidence: the picture is a plate at
+ * the head of the sheet and the rule is its bottom edge. It also sets the
+ * travel budget — the picture is 500px and the band is 304, so the surplus is
+ * 196px and banner-boot.js spends 120 of it.
+ *
+ * THE MASK is the other edge. Below the wide breakpoint the title wraps, the
+ * head rule moves down the page and the band's lower edge is no longer under
+ * it, so it has to be able to end on its own. A hard horizontal line across the
+ * page is the one thing a screened plate must not have; dissolving the last
+ * 2.5rem into the paper is what a plate does anyway. It is also free contrast:
+ * every tone in the ramp is between the paper and the ink, so fading any of
+ * them TOWARDS the paper can only increase a glyph's contrast against it,
+ * which means `.envelope()` stays a bound and does not become an estimate.
+ *
+ * WITH NO JAVASCRIPT the box keeps the plate: the identical screen, baked at
+ * the rest offset by banner-plate.ts, dropped in at natural size with
+ * `image-rendering: pixelated`. The two agree to the pixel because a screen is
+ * only ever scaled by whole numbers — the plate is 430x152 cells and this is
+ * 860x304 CSS px, which is exactly 2. Those two numbers are in px rather than
+ * in the tokens they came from for that reason alone: they are the bake, not a
+ * length. A root font-size larger than 16px therefore grows the band past the
+ * plate, and the mask fades the difference out; the canvas, when there is one,
+ * fills it exactly.
+ *
+ * `right top` rather than `left top` because everything in the band is anchored
+ * to the picture's right edge — the fade is measured across the picture, not
+ * across the band — so a right-anchored plate is correct at every band width
+ * narrower than the one it was baked at, which is every width this page has. */
+.band {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  inline-size: max(var(--measure), 860px);
+  block-size: var(--head-rule);
+  z-index: -1;
+  pointer-events: none;
+  background: var(--band-plate) right top / 860px 304px no-repeat;
+  image-rendering: pixelated;
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 5rem), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 5rem), transparent);
+}
+
+/* A reader who asked for more contrast asked for type on paper, and forced
+   colours does not paint backgrounds at all — so in that mode the canvas would
+   be the one thing left behind the text, which is the exact opposite of what
+   the mode is for. Both get the paper. `display: none` also collapses the host
+   to zero, and banner.js paints nothing into a zero-sized host. */
+@media (prefers-contrast: more), (forced-colors: active) {
+  .band {
+    display: none;
+  }
+}
+
+/* ONE THRESHOLD FOR TWO THINGS, and it is the same number because it is the
+ * same fact: below it there is not enough page to put a picture on.
+ *
+ * The picture is 635px of pixel art at native scale, anchored to the band's
+ * right edge, and nothing in it is visible until 322px in from the band's left
+ * edge — the fade's foot, measured on this build. So a column narrower than
+ * that shows no picture at all, and one only a little wider shows a sliver.
+ * At a 640px viewport the column is 588 and 266px of picture reads; at 390 it
+ * is 28px, which is nothing.
+ *
+ * ABOVE THE THRESHOLD the identity block is padded down to `--head-rule`, which
+ * does two jobs at once: the slip's drawn rule lands on the same line as the
+ * one under `Contents` across the gutter — the reason this rule existed at all,
+ * inside the wide breakpoint — and the band's lower edge lands on that rule
+ * rather than crossing the picture at whatever height the title happened to
+ * end. The rule becomes the plate's bottom edge, which is the composition.
+ *
+ * BELOW IT the band goes and the minimum goes with it, so a phone gets the
+ * compact masthead it had before any of this, with no 100px of empty paper
+ * standing in for a picture it cannot see. That is the boring document
+ * PRODUCT.md asks for on a phone, not a degraded one.
+ *
+ * The minimum is inert whenever the natural height is larger — a title wrapping
+ * to two lines simply pushes the rule down, and the band's masked lower edge
+ * fades out above it instead of on it. */
+@media (max-width: 39.999rem) {
+  .band {
+    display: none;
+  }
+}
+
+@media (min-width: 40rem) {
+  .masthead-id {
+    min-block-size: calc(var(--head-rule) - var(--masthead-top) - var(--award-gap));
+  }
 }
 
 .title {
@@ -267,16 +832,43 @@ a:focus-visible {
   margin: 0;
 }
 
+/* An italic serif is fitted tight — that is what the slope is for — so the
+   tracking here is deliberately small. At 0.05em the joins between letters
+   come apart and the line reads as broken rather than as open; 0.02em is
+   enough to stop a short line of italic from looking cramped beside a title
+   set at three times the size, and not enough to be seen as spacing.
+
+   `1.15em`, NOT `1.15rem`, and that one letter is the whole defect. At a fixed
+   18.4px against a body that runs 16 to 18.5 the deck INVERTED across the
+   page's own widths: fractionally smaller than the body at 1440 and 15% larger
+   at 390, so it was a deck at one end of the ramp and a caption at the other.
+   `.lede` does the same job with `1.15em` and holds its ratio at every width.
+
+   And its leading is its own. It inherited the body's 1.6, which is a measure
+   of how far apart two lines of a paragraph should sit; this is one display
+   line under a 52px title set at 1.04, and 1.6 detached it from the thing it
+   belongs to. 1.3 keeps the deck inside the title's tier. */
 .tagline {
   font-style: italic;
   color: var(--muted);
-  font-size: 1.15rem;
-  margin: 0.5rem 0 0;
+  font-size: 1.15em;
+  line-height: 1.3;
+  letter-spacing: 0.02em;
+  margin: calc(var(--gap-sub) / 4) 0 0;
 }
 
+/* His name, at `--t-sub`. It was `0.85rem` — 13.6px, the fourth largest thing
+   in its own block and smaller than the body underneath it, on a page whose
+   entire argument is about who made what. It is the article's second voice now
+   and it is on the ramp, so it moves with the body instead of drifting off it.
+
+   The tracking is the other half. `.byline` and `.meta` were the only mono runs
+   on this page at `letter-spacing: normal`; 0.03em is the sentence-case mono
+   voice and every record on the page is set in it. */
 .byline {
-  font: 500 0.85rem var(--mono);
-  margin: 1.75rem 0 0;
+  font: 500 var(--t-sub) / 1.4 var(--mono);
+  letter-spacing: 0.03em;
+  margin: var(--gap-sub) 0 0;
   color: var(--ink);
 }
 
@@ -284,82 +876,454 @@ a:focus-visible {
   color: var(--muted);
 }
 
-.meta {
-  font: 400 0.78rem / 1.9 var(--mono);
-  color: var(--muted);
-  margin: 0.35rem 0 0;
-}
+/* IT WAS THE ONLY TEXT ON THE PAGE UNDER THE CONTRAST FLOOR, and the only
+   colour on the page made by transparency rather than by a token. At
+   `opacity: 0.45` on muted it rendered 1.85:1 light and 2.15:1 dark, against a
+   4.5:1 floor for text this size — a separator a reader on a dim screen simply
+   could not see, in a run of metadata where the separator is the only thing
+   saying the three facts are three facts.
 
+   `--muted` is a token, it is the colour the metadata around it is already set
+   in, and it measures 4.91:1 light and 5.69:1 dark. Separation is carried by
+   the space instead, which is what carries it in a printed run anyway: 0.4em
+   each side of a middot at 13.4px mono is a wider gap than the word space
+   beside it, so the mark reads as a division without being drawn darker than
+   the words it divides. */
 .sep {
-  opacity: 0.45;
-  padding: 0 0.15rem;
-}
-
-.award {
-  margin: 1.75rem 0 0;
-  padding: 0.85rem 0 0;
-  border-top: 1px solid var(--rule);
-  font: 500 0.78rem / 1.6 var(--mono);
-  color: var(--accent);
-  letter-spacing: 0.03em;
-}
-
-.award .award-where {
   color: var(--muted);
-  letter-spacing: 0;
+  padding: 0 0.4em;
 }
 
-/* The row gap is a target-size rule, not a rhythm one. These wrap on a narrow
-   phone, and at 0.35rem the centres of two stacked 15px links sat 20.6px apart
-   — under the 24px WCAG 2.5.8 allows an undersized target to earn back through
-   spacing. 0.75rem puts them 27px apart. Nothing changes above 360px, where
-   they have never wrapped. */
-.masthead-links {
-  list-style: none;
+/* The masthead's half of the head rule. The day rule earned the hand by being a
+ * page turn that happens eight times; this one earns it by happening once, at
+ * the top, where the reader meets the article — the two ends of the same
+ * argument about where character can go.
+ *
+ * At the wide breakpoint it is half of one line: the rule under `Contents` is
+ * the other half, drawn from the same seed over the same span, so the two wander
+ * as one curve with the gutter cut out of the middle. See `.toc-rule` below and
+ * the head-rule block in drawn-rules.js. Below the breakpoint this is the whole
+ * line, and it tapers at both ends instead of being cut at one.
+ *
+ * It is a plain line rather than an ornament. The masthead already has the title
+ * in it and does not need a second thing to look at, and this line is the top
+ * edge of a block of metadata rather than a division between two days.
+ *
+ * Unlike the day rule it runs the full width of the column, which is why
+ * drawn-rules.js measures the block and generates the line at its true length
+ * instead of scaling a fixed drawing: at the measure that is 860px, and a 156px
+ * wing stretched five and a half times would be a wave, while an 860px drawing
+ * squeezed onto a phone would be a 0.65px hairline with the shakes. See the note
+ * in that file for what the tremor and the drift each do with the extra length.
+ *
+ * The border underneath is the fallback and is always present, exactly as it is
+ * under the day rule: with no JavaScript it is what the reader gets, and the
+ * script takes its colour away rather than removing it, so nothing moves by a
+ * pixel when the line arrives. */
+.slip {
+  position: relative;
+  margin: var(--award-gap) 0 0;
+  padding: 0.85rem 0 0;
+  border-top: var(--head-hair) solid var(--rule);
+}
+
+:root.award-rule-drawn .slip {
+  border-top-color: transparent;
+}
+
+/* THE RECORD, AS ONE OBJECT. It was three separate paragraphs — the metadata
+ * line, the prize, and the jam under it — with three leadings for the same face
+ * at the same size (1.9, 1.6 and the colophon's 1.7), two colours inside the
+ * prize alone, two trackings inside it, and the only running text on the page
+ * set in the accent. Six facts, six treatments, no relationship stated between
+ * any of them.
+ *
+ * A term column and a value column states the relationship, which is what a
+ * definition list is for, and the alignment is what turns six rows into one
+ * block. The term column is the label voice: uppercase mono at 0.14em and
+ * `--t-rail * 0.96`, which is the same size, weight, case and tracking as
+ * `Contents` at the far end of the head rule. That is deliberate — the two ends
+ * of the same line are now the same object, and it is the through-line the
+ * masthead did not have.
+ *
+ * 0.96 rather than parity for the same reason the rail's label takes it, and
+ * the argument is already written out under `.toc-h`: uppercase mono stands at
+ * cap height where sentence-case mono is mostly x-height, so at equal pixels
+ * the label already outweighs the value it heads. */
+.slip dl {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: 1.75rem;
+  row-gap: 0.35rem;
+  margin: 0;
+}
+
+.slip dt {
+  font: 600 calc(var(--t-rail) * 0.96) / 1.7 var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+}
+
+.slip dd {
+  font: 400 var(--t-rail) / 1.7 var(--mono);
+  letter-spacing: 0.03em;
+  color: var(--ink);
+  margin: 0;
+}
+
+/* On a phone the value column is what is left of 350px after a term column and
+   a gutter, and both values are long enough to take three lines of it. Stacked,
+   they take two and the terms stay where a term belongs. */
+@media (max-width: 30rem) {
+  .slip dl {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 0;
+  }
+
+  .slip dd {
+    margin-block-end: 0.5rem;
+  }
+}
+
+/* Out of flow, so it costs no height and nothing shifts when it lands, and
+   centred on the hairline it replaces.
+   `preserveAspectRatio="none"` on the SVG plus a height fixed here rather than
+   `auto` is what makes a later resize cheap: the box only ever scales on x, so
+   the weight of the line and the amplitude of its wobble are the numbers they
+   were drawn at whatever the window does afterwards. Only the spacing of the
+   wiggles moves, which is the one axis it is safe to give up. */
+.award-rule {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 0;
+  transform: translateY(-50%);
+  color: var(--rule);
+  line-height: 0;
+  pointer-events: none;
+}
+
+.award-rule svg {
+  display: block;
+  width: 100%;
+  height: 12px;
+}
+
+@media (prefers-contrast: more), (forced-colors: active) {
+  .award-rule {
+    display: none;
+  }
+
+  :root.award-rule-drawn .slip {
+    border-top-color: var(--rule);
+  }
+}
+
+/* ----------------------------------------------------------- left rail --- */
+
+/* THE LEFT GUTTER EXISTS BECAUSE A CENTRED COLUMN NEEDS THE RAIL'S WIDTH ON
+ * BOTH SIDES. It was the price of the text being in the middle and it was
+ * empty; this is what it is for. *"Those buttons are enough for now on the left
+ * side."*
+ *
+ * WHAT WAS WRONG WITH THE ROW IT REPLACES. Five items in a wrapping line that
+ * mixed four kinds of thing — two outbound links, one in-page anchor and two
+ * controls — with nothing at all saying which was which. `start reading` read
+ * as a sixth outbound link, because in that row it was typeset as one.
+ *
+ * SO THE GROUPS ARE THE DISTINCTION, and they are labelled rather than implied:
+ * `Elsewhere` leaves this site, `Here` acts on this page. Two words, in the
+ * label voice the slip and the contents rail both use, doing the one job a
+ * label does. Inside `Here` the anchor and the two controls are told apart by
+ * what they say — a place to go, against a verb and a state — which is the
+ * distinction that actually matters to a reader and the only one worth spending
+ * a second treatment on.
+ *
+ * VERTICAL TEXT WAS EVALUATED AND DROPPED. It was floated — *"maybe even
+ * vertical text buttons, if that is something that works"* — and rendered both
+ * ways. It does not: the gutter is 288px wide and 400px tall, which is a wide
+ * space, and vertical text is the answer to a NARROW one. Set on its side the
+ * rail used a fifth of its column and left the rest empty, it read slower for
+ * no gain on labels this short, and `Theme: system` changes length as it cycles
+ * — vertical, that is a block whose height moves when you press it. Below the
+ * wide breakpoint there is no gutter at all, so it would also have been a
+ * second, different rail. The screenshots are in the report.
+ *
+ * IT DOES NOT PUSH THE BREAKPOINT. Everything here is inside `--rail`, which
+ * the gutter already reserves; the longest item, `play Rise&Shine`, measures
+ * about 121px in 288.
+ *
+ * NOTHING HERE DEPENDS ON A SCRIPT except the two controls, which ship inside
+ * `<li hidden>` and are revealed by clips.js and theme.js setting `hidden` on
+ * the LI. That is unchanged, and it is why the reveal is on the list item
+ * rather than on the button. */
+.rail {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem 1.5rem;
-  margin: 0.9rem 0 0;
-  padding: 0 0 2.5rem;
-  font: 400 0.8rem var(--mono);
+  gap: var(--gap-sub) 4rem;
+  margin: 0.5rem 0 var(--gap-head);
+  font: 400 var(--t-rail) / 1.8 var(--mono);
 }
 
-/* One of the row of things you can do here, and it reads as one. A button is
-   what it has to be — it acts on this page rather than going anywhere — but
-   dressing it as a button would put the only box on a page that has none. */
-.motion-button {
+.rail-h {
+  font: 600 calc(var(--t-rail) * 0.96) / 1.7 var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+  margin: 0 0 0.4rem;
+}
+
+.rail ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* WCAG 2.5.8, and it is the spacing exception rather than the size one. These
+   are inline links, so each target is the box of its own text: 16.6px tall at
+   the wide end, under the 24px minimum, which the criterion lets an undersized
+   target earn back through the space around it — a 24px circle on one target
+   must not reach another's.
+   At 1.8 line-height alone the centres were 24.2px apart, which passes by two
+   tenths of a pixel and would stop passing the moment the ramp moved. The
+   0.35rem between items puts them 29.7px apart at the wide end and 27.2 at the
+   narrow one. Measured, both ends, and in the report. */
+/* Every row is the same height whether it holds a link or a button, and that is
+   a layout-shift fix rather than a tidiness one. A link is an inline box the
+   height of the font's content area; a button cannot be one, so its box is the
+   line box plus the underline's padding — three pixels taller. With the two
+   controls revealed by script the `Here` column therefore grew past `Elsewhere`
+   and pushed the article down: 0.0011 of layout shift at 768, measured. A
+   minimum of one line box plus that padding makes both kinds the same row, so
+   the reveal cannot change the rail's height. */
+.rail li {
+  min-block-size: calc(1.8em + var(--link-pad));
+}
+
+.rail li + li {
+  margin-block-start: 0.35rem;
+}
+
+/* Into the gutter it was built for, on the masthead's own row, mirroring the
+   contents rail: a `--rail`-wide box, one `--rail-gap` from the reading column,
+   `align-self: start` so it sits at the top of the row rather than stretching
+   down it.
+   `justify-self: end` is what puts it against the column instead of against the
+   viewport — the gutter is a `1fr` track and is wider than `--rail` at every
+   width past the breakpoint, so without it the rail would drift further from
+   the text the wider the window got.
+   It is deliberately NOT sticky. The contents rail is a reading aid and travels
+   with the reader; this is the head of the page and it leaves when the head
+   does.
+   THIS BLOCK IS HERE RATHER THAN IN THE LAYOUT SECTION, and that is load-
+   bearing: it overrides margins and flow set by `.rail` directly above at the
+   same specificity, and the layout section is earlier in the file. Written up
+   there it lost the cascade and the rail sat 40px too high with no gutter
+   between it and the text — which is what it did until it was measured. */
+@media (min-width: 105rem) {
+  .rail {
+    grid-row: 1;
+    grid-column: full-start / main-start;
+    justify-self: end;
+    align-self: start;
+    width: var(--rail);
+    /* Level with the title rather than with the top of the header box: the
+       masthead's own top padding is what the title starts after, so the rail
+       taking the same offset puts the first label on the title's line. */
+    margin: var(--masthead-top) var(--rail-gap) 0 0;
+    flex-direction: column;
+    gap: var(--gap-head);
+  }
+}
+
+/* Two of the things you can do here are controls, and they read as two. A
+   button is what each has to be — they act on this page rather than going
+   anywhere — but dressing them as buttons would put the only boxes on a page
+   that has none. */
+/* The same drawn underline the links have, because these sit in the same row as
+   four of them and a row where two items are ruled by hand and two are not is a
+   row that looks like a mistake. `display: inline` is what makes the treatment
+   land in the same place: a button is inline-block by default, so its box is its
+   line box rather than the font's content area, and the underline would sit
+   several pixels lower than it does on the links beside it. */
+.motion-button,
+.theme-button {
   font: inherit;
   color: inherit;
-  background: none;
   border: 0;
   padding: 0;
   cursor: pointer;
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-decoration-color: var(--underline);
-  text-underline-offset: 0.18em;
+  display: inline;
+  text-decoration: none;
+  background-color: transparent;
+  background-image: var(--link-rule-a), var(--link-rule-b);
+  background-repeat: repeat-x;
+  background-size:
+    var(--link-tile-a) var(--link-tile-h),
+    var(--link-tile-b) var(--link-tile-h);
+  padding-bottom: var(--link-pad);
+  background-position-x: 0, 0;
+  background-position-y:
+    calc(100% - var(--link-pad) + var(--link-drop)),
+    calc(100% - var(--link-pad) + var(--link-drop));
 }
 
 .motion-button:hover,
-.motion-button:focus-visible {
+.motion-button:focus-visible,
+.theme-button:hover,
+.theme-button:focus-visible {
   color: var(--accent);
-  text-decoration-color: currentColor;
+  background-image: var(--link-rule-a-on), var(--link-rule-b-on);
+}
+
+/* The same hairline restoration the links get, restated down here rather than
+   shared with them. These two selectors weigh a class each and the links' block
+   weighs an element, so a single combined rule up there lost to the two rules
+   directly above — the buttons kept their drawing under more contrast while
+   every link beside them went back to a decoration. Same specificity, later in
+   the file, is what settles it. */
+@media (prefers-contrast: more), (forced-colors: active) {
+  .motion-button,
+  .theme-button {
+    background-image: none;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-decoration-color: var(--underline);
+    text-underline-offset: 0.18em;
+  }
+
+  .motion-button:hover,
+  .motion-button:focus-visible,
+  .theme-button:hover,
+  .theme-button:focus-visible {
+    text-decoration-color: currentColor;
+  }
 }
 
 /* ------------------------------------------------------------------ toc --- */
 
 .toc {
-  font: 400 0.78rem / 1.45 var(--mono);
+  font: 400 var(--t-rail) / 1.5 var(--mono);
 }
 
+/* The label's box is stated rather than left to the font's line box, because
+   `--head-label` is the distance the rail is offset by above: the underline has
+   to be a known number from the top of the rail, not whatever a 0.7rem mono
+   line happens to measure. `min-` rather than a fixed size so a larger text
+   setting grows the box instead of clipping the word.
+
+   IT WAS A CAPTION. At 0.9 of `--t-rail` this computed to 12.06px while a rail
+   entry computes to 13.4 — a section label set smaller than the list it heads,
+   in the quieter of the two colours the list uses, which is the identical defect
+   an earlier pass found on `h3` and fixed there. A heading that is smaller and
+   fainter than its own content is not a heading.
+
+   The ratio and the colour both had to move, and the ratio was picked by looking
+   rather than by rounding 0.9 up to 1. This is uppercase mono at 0.14em against
+   mixed-case mono at none: every glyph in `CONTENTS` stands at cap height where
+   the entries are mostly x-height, and the tracking spreads eight letters over
+   the width of eleven. At parity in pixels it already outweighs the list, and
+   the value here is a shade under parity — 12.9px against 13.4 — because the
+   optical size is what has to be bigger, not the number. Rendered side by side
+   at 1920 and looked at: 0.9 is the caption, 0.96 and 1.0 are barely
+   distinguishable from each other and both read as a label above a list, and
+   1.1 crosses over into a title for the whole rail rather than a heading on the
+   list. 0.96 is the lower of the two that work, which is the one to take on a
+   reading page.
+
+   Full ink, for the other half of the defect: the ten day entries are `--ink`
+   and the label was `--muted`, so the heading was the faintest thing in its own
+   column. */
 .toc-h {
-  font: 500 0.7rem var(--mono);
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  min-block-size: var(--head-label);
+  font: 600 calc(var(--t-rail) * 0.96) var(--mono);
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  color: var(--muted);
+  color: var(--ink);
   margin: 0 0 0.75rem;
-  padding-bottom: 0.6rem;
-  border-bottom: 1px solid var(--rule);
+  /* IT WAS SITTING ON ITS OWN RULE. `align-items: flex-end` with no padding puts
+     the bottom of the label's line box exactly on the border, so the word had
+     zero descender space and read as though it had been dropped onto the line.
+     Tani: *"the content header needs to be just a little bit more high. It's
+     pretty much touching the line below it, which doesn't fit."*
+
+     Padding normally pushes a border down and would have taken this half of the
+     head rule off the masthead's half. It does not here, and that was checked
+     rather than assumed: `box-sizing: border-box` is global, so
+     `min-block-size: var(--head-label)` INCLUDES the padding — measured at every
+     value from 0 to 6px the border stayed on y=305 and the award's border-top on
+     y=304, which is the one-hairline offset the two bands are built on. The
+     padding lifts the text inside a box whose height does not move.
+
+     0.25rem, picked by looking at 0, 3, 4, 5 and 6px rendered at 4x. There are
+     8px of slack in the box — a 15px line inside 23px of content — and this is
+     the value that splits it evenly, so the label is optically centred in its
+     own box instead of resting on the line. Past 5px it starts to crowd the top
+     of the rail instead, which is the same defect upside down.
+     In rem rather than px so it travels with `--head-label`: at a 24px root the
+     box grows to 36px and the label still clears both edges, checked. */
+  padding-bottom: 0.25rem;
+  border-bottom: var(--head-hair) solid var(--rule);
+}
+
+/* The rail's half of the head rule, drawn by drawn-rules.js from the same seed
+   and the same span as the masthead's — see the head-rule block in that file.
+   Out of flow, so it costs no height and nothing shifts when it lands.
+
+   `inset-block-end` is negative by exactly one hairline because an absolutely
+   positioned child is placed from its parent's PADDING box, whose bottom is one
+   border-width above the shared line. That takes the drawing to the same y the
+   award's half is centred on, from the other side. The hairline underneath is
+   the fallback and is always present: with no JavaScript it is what the reader
+   gets, and the script takes its colour away rather than removing it, so nothing
+   moves by a pixel when the line arrives. */
+.toc-rule {
+  position: absolute;
+  inset-block-end: calc(-1 * var(--head-hair));
+  inset-inline: 0;
+  transform: translateY(50%);
+  color: var(--rule);
+  line-height: 0;
+  pointer-events: none;
+}
+
+.toc-rule svg {
+  display: block;
+  width: 100%;
+  height: 12px;
+}
+
+/* Both halves of this are inside the breakpoint, because this half of the head
+   rule only exists where there is a head rule for it to be half of. Below it the
+   rail is a spine above the article with a hairline over and under it, and a
+   third line through the middle drawn by hand would be the noise PRODUCT.md's
+   ninth principle is about. It also means a reader who resizes across the
+   breakpoint after the page has drawn — the one case a file with deliberately no
+   resize listener cannot answer — gets the hairline back rather than a 268px
+   drawing stretched across 700. */
+@media (min-width: 105rem) {
+  :root.toc-rule-drawn .toc-h {
+    border-bottom-color: transparent;
+  }
+}
+
+@media (max-width: 104.99rem) {
+  .toc-rule {
+    display: none;
+  }
+}
+
+@media (prefers-contrast: more), (forced-colors: active) {
+  .toc-rule {
+    display: none;
+  }
+
+  :root.toc-rule-drawn .toc-h {
+    border-bottom-color: var(--rule);
+  }
 }
 
 .toc ol {
@@ -368,11 +1332,76 @@ a:focus-visible {
   padding: 0;
 }
 
+/* The box that scrolls. It has to be stated after `.toc ol` above rather than
+   beside the rail's own layout: the two selectors weigh the same, and the one
+   further down the file is the one that wins, so `padding: 0` up there would
+   quietly take the focus air away again.
+   Below the wide breakpoint this is the horizontal spine and there is nothing
+   to scroll, which is why it is in here. */
+@media (min-width: 105rem) {
+  /* The label keeps the list's left edge — the 5px of focus air below — and
+     gives up the scrollbar gutter, because it is not the thing with the
+     scrollbar. So its box is 278px where the list's text is 268: the two share a
+     left edge, which is the one a reader can see, and differ by the gutter on
+     the right, which is behind the taper at the end of the drawn line.
+     `flex: none` because a flex item's default is to shrink, and a label that
+     gave up height in a short window would take its half of the head rule off
+     the line the masthead's half is on. */
+  .toc-h {
+    flex: none;
+    margin-inline: 5px;
+  }
+
+  .toc > ol {
+    overflow-y: auto;
+    /* A flex item's floor is its content, so without this the list refuses to
+       be shorter than its 1,232px and the rail overflows the viewport instead
+       of scrolling inside it. */
+    min-block-size: 0;
+    /* `overflow-y: auto` forces `overflow-x` to clip, and the links sit flush
+       with the list's content box, so a focus ring drawn 3px outside a link
+       came out as two horizontal bars with no ends. Five pixels of inside air
+       is exactly what the ring needs — 3px of offset plus its own 2px.
+       Padding rather than a wider rail, because the rail's own box is what the
+       breakpoint above is derived from and widening it would push it back into
+       the page's right padding. `overflow-clip-margin` would have cost nothing,
+       but it only applies to `overflow: clip`, and `clip` beside a scrolling
+       axis computes to `hidden` — checked, not assumed. */
+    padding-inline: 5px;
+    /* And the other thing eating the rail's inside, which until this was
+       declared was eating a different amount depending on the window.
+     *
+     * The list is 1,232px tall, so on most screens it overflows and the `thin`
+     * scrollbar takes 10px off the content box. On a tall enough window —
+     * anything over about 1,330px — it does not overflow and the scrollbar is
+     * not there. Ten pixels that appear and disappear with the viewport's
+     * HEIGHT is not a width anything can be aligned to.
+     *
+     * Reserving the gutter always is the fix. The list's inside is 268px in
+     * every window — 288 less two lots of focus air and one scrollbar gutter,
+     * all three declared — so all forty-two entries share one right edge and
+     * nothing reflows when the window is resized vertically. Where the platform
+     * overlays its scrollbars the gutter is zero by definition and this costs
+     * nothing. */
+    scrollbar-gutter: stable;
+  }
+}
+
 .toc a {
   display: block;
   padding: 0.2rem 0;
   color: var(--muted);
   text-decoration: none;
+  /* Forty-two of them, in a column, at 0.75 of the body size. This is the list
+     the ninth design principle is about: the drawn line goes on what repeats
+     rarely, and a hand-ruled underline on every entry of a contents rail is the
+     definition of charming once and noise forty times. */
+  background-image: none;
+  /* How close to the rail's own top or bottom edge the current entry is allowed
+     to land when the rail scrolls it back into view. toc.js reads this property
+     rather than carrying a number of its own, so the spacing stays here with
+     the rest of the spacing. */
+  scroll-margin-block: 1.25rem;
 }
 
 .toc a:hover,
@@ -397,12 +1426,34 @@ a:focus-visible {
   padding-left: 1.7rem;
 }
 
+/* Where the reader is. The accent is the page's existing word for "this one" —
+ * it is what the day index above every day heading is set in, in this same
+ * mono — so the rail is borrowing a mark the page already made rather than
+ * introducing one.
+ *
+ * Colour only, and that is a decision rather than a shortage of ideas. Weight
+ * would rewrap the six entries that already run to two lines, so the rail's
+ * scroll height would twitch as the reader moved down the article. A field, a
+ * rule or a marker would be the first box on a page that has none.
+ *
+ * It shares the hover colour. Hover is where the pointer is and this is where
+ * the reader is; on the one entry where those coincide there is nothing to tell
+ * apart, and every other entry still answers the pointer. Set below the hover
+ * rule on purpose: the two weigh the same, so the later one wins, and the
+ * current entry should not lose its mark to a pointer resting elsewhere in
+ * the list.
+ *
+ * Nothing here runs without toc.js. With no script the attribute is never set
+ * and the rail is what it was. */
+.toc a[aria-current='location'] {
+  color: var(--accent);
+}
+
 /* Narrow screens get the spine only — nine days and an epilogue, laid out as a
    row. The full forty-two-entry outline is a wall on a phone, and the sections
    are two swipes apart once you are on the right day anyway. */
-@media (max-width: 90.99rem) {
+@media (max-width: 104.99rem) {
   .toc {
-    max-width: var(--wide);
     margin: 0 0 3.5rem;
     padding: 1.1rem 0;
     border-top: 1px solid var(--rule);
@@ -423,33 +1474,498 @@ a:focus-visible {
   .toc .lvl-1 > a {
     margin-top: 0;
   }
+
+  /* The spine is the ten day entries, and the section the reader is actually
+     inside is usually one of the thirty-one that are not displayed here. So the
+     mark goes on the day that section belongs to: the same answer at the
+     resolution this spine has. Marking only the entries that happen to be days
+     would leave the indicator dark for four fifths of the article and read as
+     broken rather than as honest. */
+  .toc .lvl-1.is-current-day > a {
+    color: var(--accent);
+  }
+}
+
+/* --------------------------------------------------------------- remote --- */
+
+/* THE REMOTE: wherever the gutters are gone, a floating button that opens the
+ * page's options. remote.js has the mechanism and the reasons; this is what it
+ * looks like, and it is meant to look like nothing much. The reading page
+ * spends no expressive budget — PRODUCT.md gives that to the hub — so the
+ * button and the sheet are made of what the page already has: paper, ink, a
+ * hairline, the label voice. No shadow, no card, no colour of its own.
+ *
+ * TWO BREAKPOINTS, BOTH ALREADY THE PAGE'S, and remote.js tests the identical
+ * strings. Below `104.99rem` — where the gutters collapse — the remote exists:
+ * first only phones had it, then Tani: "We can give smaller laptop screens the
+ * menu as well, the band isn't accessible at all times." Below `39.999rem`, a
+ * phone, it opens as a bottom sheet and the masthead's slip shrinks to one
+ * line; between the two it opens as a panel above the button, and the slip
+ * stays whole. At 105rem and up nothing in this section applies and the page
+ * is the gutter layout it always was.
+ *
+ * WHERE THE RAIL AND CONTENTS GO. Under the class remote-boot.js sets before
+ * the first paint, a narrow page does not draw them in the flow at all;
+ * remote.js then moves them into the sheet. The selectors are pinned to where
+ * they ship — `.page > .rail`, `.layout > .toc` — so this rule stops matching
+ * the nodes the moment they leave, and matches the empty rail they leave
+ * behind. With no script the class is never set and they stay exactly where
+ * they were: the band above the article. */
+.remote {
+  display: none;
+}
+
+/* The phone's whole slip, when the remote is running: the prize and the
+   length, in the record voice the slip's values are set in. See the slip's
+   comment in build.ts for why it is a second element and why that is not a
+   second copy to a screen reader. Off everywhere else, which is what keeps the
+   laptop's slip and the no-script phone's slip exactly as they were. */
+.slip-brief {
+  display: none;
+  margin: 0;
+  font: 400 var(--t-rail) / 1.7 var(--mono);
+  letter-spacing: 0.03em;
+  color: var(--ink);
+}
+
+@media (max-width: 39.999rem) {
+  :root.has-remote .slip > .slip-record {
+    display: none;
+  }
+
+  :root.has-remote .slip-brief {
+    display: block;
+  }
+}
+
+@media (max-width: 104.99rem) {
+  :root.has-remote .page > .rail,
+  :root.has-remote .layout > .toc {
+    display: none;
+  }
+
+  /* Bottom right, because that is where a right thumb rests on a phone held in
+     one hand, and inside the safe area so the home indicator and a rounded
+     corner cannot sit on it; on a laptop it is the corner the reading column
+     leaves empty, and the one a pointer reaches from the scrollbar. 3rem is
+     48px: over the 44px a touch target wants, with the hairline counted inside
+     it. The `[hidden]` guard is not optional —
+     a class rule outweighs the browser's own `[hidden]`, and without the
+     `:not` this would show a button that remote.js has deliberately hidden. */
+  .remote:not([hidden]) {
+    position: fixed;
+    inset-inline-end: calc(1rem + env(safe-area-inset-right, 0px));
+    inset-block-end: calc(1rem + env(safe-area-inset-bottom, 0px));
+    z-index: 20;
+    display: grid;
+    place-items: center;
+    inline-size: 3rem;
+    block-size: 3rem;
+    padding: 0;
+    border: 1px solid var(--rule-strong);
+    border-radius: 50%;
+    background: var(--paper);
+    color: var(--ink);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Out of the way while the page moves. Opacity and not `visibility`, so the
+     button can still take keyboard focus mid-scroll — remote.js shows it the
+     instant it does — and `pointer-events` so a thumb flicking past it cannot
+     open the sheet by accident. */
+  .remote.is-away {
+    opacity: 0;
+    transform: translateY(0.75rem);
+    pointer-events: none;
+  }
+}
+
+/* The slot the drawing goes into. A placeholder word today — see REMOTE_FACE
+   in build.ts — and Tani's character later. An SVG dropped in here is sized to
+   two thirds of the button and painted in the button's own colour, so it is ink
+   in both themes and the accent on hover without carrying a colour itself. */
+.remote-face {
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.remote-face svg {
+  display: block;
+  inline-size: 2rem;
+  block-size: 2rem;
+  fill: currentColor;
+}
+
+/* The placeholder, in the label voice: the same face, weight, case and
+   tracking as `Elsewhere`, `Here` and `Contents`. The tracking puts 0.14em of
+   air after the last letter too, and the matching indent puts it back in front
+   of the first, so the word sits in the middle of the circle rather than a
+   hair to the left of it. */
+.remote-word {
+  font: 600 calc(var(--t-rail) * 0.96) / 1 var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  text-indent: 0.14em;
+}
+
+/* With a pointer, the button says it has been found: the word and the ring both
+   take the accent, the same change a link makes. Keyboard focus adds the page's
+   own focus ring outside it as well. */
+.remote:hover,
+.remote:focus-visible {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* The sheet. A modal `<dialog>`, so the browser's own centring has to be
+ * undone: it arrives fixed, inset on every side, `margin: auto`, with a border,
+ * padding and a width that fits its content. This pins it to the bottom edge
+ * at full width, as tall as it needs to be up to most of the screen, and lets
+ * it scroll inside itself past that. `dvh` is the visible height on a phone
+ * whose toolbar comes and goes; the `vh` line before it is for a browser that
+ * has not heard of it. `overscroll-behavior` stops a scroll that reaches the
+ * end of the sheet from carrying on into the page under it.
+ *
+ * The dialog has no padding of its own, and remote.js depends on that: a tap
+ * on the backdrop reaches the dialog element, and so does a tap on its padding,
+ * so all the padding is on the two children and the dialog is only ever the
+ * target when the tap was outside the sheet. */
+.sheet {
+  position: fixed;
+  inset: auto 0 0;
+  margin: 0;
+  inline-size: auto;
+  block-size: auto;
+  max-inline-size: none;
+  max-block-size: 85vh;
+  max-block-size: 85dvh;
+  padding: 0;
+  border: 0;
+  border-top: 1px solid var(--rule-strong);
+  background: var(--paper);
+  color: var(--ink);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  font: 400 var(--t-rail) / 1.8 var(--mono);
+}
+
+/* A literal rather than a token. `::backdrop` only began inheriting custom
+   properties from its dialog in 2024, so on an older phone `var(--ink)` here is
+   nothing and the backdrop would not dim at all. A warm black at under half
+   strength reads as the page going quiet in both themes; on the dark page it is
+   barely a change, which is the right amount there too. */
+.sheet::backdrop {
+  background: rgb(20 16 12 / 0.45);
+}
+
+:root.sheet-open {
+  overflow: hidden;
+}
+
+/* The close control stays at the top of the sheet when the sheet scrolls, so
+   there is always a way out without hunting for the backdrop. It is the first
+   thing in the dialog, which is also where `showModal()` puts focus. */
+.sheet-head {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 1;
+  display: flex;
+  justify-content: flex-end;
+  padding-inline: calc(clamp(1.25rem, 4vw, 3rem) + env(safe-area-inset-left, 0px))
+    calc(clamp(1.25rem, 4vw, 3rem) + env(safe-area-inset-right, 0px));
+  background: var(--paper);
+}
+
+/* The label voice, and a 44px target: the padding is the target, and the
+   negative margin gives it back so the word itself lines up with the page's
+   right edge instead of a padding's width inside it. */
+.sheet-close {
+  min-block-size: 2.75rem;
+  margin-inline-end: -0.75rem;
+  padding: 0 0.75rem;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: 600 calc(var(--t-rail) * 0.96) / 1 var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  cursor: pointer;
+}
+
+.sheet-close:hover,
+.sheet-close:focus-visible {
+  color: var(--accent);
+}
+
+.sheet-body {
+  padding: 0 calc(clamp(1.25rem, 4vw, 3rem) + env(safe-area-inset-right, 0px))
+    calc(1.25rem + env(safe-area-inset-bottom, 0px))
+    calc(clamp(1.25rem, 4vw, 3rem) + env(safe-area-inset-left, 0px));
+}
+
+/* ON A LAPTOP IT IS A PANEL, NOT A SHEET. A bottom sheet is the phone's form
+ * because a phone is one column and the thumb is at the bottom of it; spread
+ * across a 1400px window it would be a strip of menu the width of the screen
+ * with nine short rows in it and nothing near the button that opened it. So
+ * from 40rem up the same dialog rises out of the corner the button is in: its
+ * right edge on the button's, its bottom edge three quarters of a rem above the
+ * button's top, 26rem wide at most — the rail's own 18rem plus the room the
+ * tree's 44px rows and disclosures need — and as tall as the contents ask, up
+ * to the window less the same margin at the top.
+ *
+ * A hairline all the way round, because a panel standing on the page needs an
+ * edge on every side where a sheet only needed one; no shadow and no radius, as
+ * everywhere else. The page's wide inline padding is for a column of text, so
+ * the panel takes a narrower, fixed one. Placed after the sheet's own rules on
+ * purpose: they weigh the same, and these replace them. */
+@media (min-width: 40rem) {
+  .sheet {
+    inset: auto calc(1rem + env(safe-area-inset-right, 0px))
+      calc(4.75rem + env(safe-area-inset-bottom, 0px)) auto;
+    inline-size: min(26rem, calc(100vw - 2rem));
+    max-block-size: calc(100vh - 6.75rem);
+    max-block-size: calc(100dvh - 6.75rem);
+    border: 1px solid var(--rule-strong);
+  }
+
+  .sheet-head {
+    padding-inline: 1.5rem;
+  }
+
+  .sheet-body {
+    padding: 0 1.5rem 1.25rem;
+  }
+}
+
+/* Three groups, divided by the page's hairline — the same rule that sat over
+   and under the contents spine — and each headed in the label voice. All three
+   headings take the rail's treatment here rather than the contents' own: in a
+   sheet they are three equal sections of one menu, and `Contents` keeping its
+   ink and its underline would make it read as the title of the other two. */
+.sheet .toc,
+.sheet .rail-group {
+  margin: 0;
+  padding: 0.75rem 0 1rem;
+  border: 0;
+  border-top: 1px solid var(--rule);
+}
+
+.sheet-body > :first-child {
+  border-top: 0;
+}
+
+/* The slip's record, moved here from the masthead: the same two terms and the
+   same values, stacked the way the slip already stacks on a narrow phone, and
+   one step quieter — the values in muted rather than ink — because in a menu
+   it is reference, not the first thing to read. The jam stays a link with its
+   drawn underline, which is what tells it apart from the facts around it. */
+.sheet .slip-record {
+  display: block;
+  margin: 0;
+  padding: 0.25rem 0 1rem;
+}
+
+.sheet .slip-record dt {
+  font: 600 calc(var(--t-rail) * 0.96) / 1.7 var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+}
+
+.sheet .slip-record dd {
+  margin: 0 0 0.5rem;
+  font: 400 var(--t-rail) / 1.7 var(--mono);
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+
+.sheet .slip-record dd:last-child {
+  margin-bottom: 0;
+}
+
+.sheet .toc-h,
+.sheet .rail-h {
+  display: block;
+  min-block-size: 0;
+  margin: 0 0 0.25rem;
+  padding: 0;
+  border: 0;
+  font: 600 calc(var(--t-rail) * 0.96) / 1.7 var(--mono);
+  color: var(--muted);
+}
+
+.sheet ul,
+.sheet .toc > ol {
+  display: block;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Every row is 44px tall, links, buttons and contents alike. A sheet is held
+   in one hand and read at arm's length; the rail's inline targets, which were
+   fine beside a pointer, are not fine under a thumb.
+   The contents are block links, so the row IS the target. The other two
+   groups keep their links and buttons inline, because the drawn underline is
+   placed from the bottom of an inline box and a block one would drop it half a
+   line below the word — so the row is made tall with padding on the item, and
+   the pseudo-element below stretches each control's target across it. */
+.sheet .toc a {
+  display: block;
+  margin: 0;
+  /* Block only: the inline padding is each level's indent, set by the outline
+     rules above at the same weight, and this rule being later would take it. */
+  padding-block: calc((2.75rem - 1.5em) / 2);
+}
+
+/* The tree. The spine rule above hides every section below the wide
+   breakpoint; in the sheet they come back, and a day's own disclosure decides
+   whether its list is shown — remote.js sets `hidden` on it, and `hidden` is
+   the whole of the collapsed state. Sections keep the indents and the muted
+   colour they have in the gutter, so the outline reads as the same outline.
+   The day is a two-column row: the link takes what is left, the disclosure a
+   44px square at the end, and the sections run the full width under both. */
+.sheet .toc .lvl-2,
+.sheet .toc .lvl-3 {
+  display: block;
+}
+
+.sheet .toc .lvl-1 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 2.75rem;
+  align-items: center;
+}
+
+.sheet .toc .lvl-1 > ol {
+  grid-column: 1 / -1;
+  padding-block-end: 0.35rem;
+}
+
+.sheet .toc .lvl-1 > ol[hidden] {
+  display: none;
+}
+
+/* A plus that becomes a minus. Mono, muted, the size of the entries: the
+   plainest mark there is for "more under here", and not a drawing — the page
+   has no icons and this is not where it should get its first. The negative
+   margin puts the glyph on the column's right edge while the 44px target
+   keeps its full width. */
+.toc-twisty {
+  inline-size: 2.75rem;
+  block-size: 2.75rem;
+  margin-inline-end: -0.9rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: 400 calc(var(--t-rail) * 1.25) / 1 var(--mono);
+  cursor: pointer;
+  /* The browser's tap flash is a blue-grey box from outside the palette; the
+     plus turning into a minus is the feedback this needs. */
+  -webkit-tap-highlight-color: transparent;
+}
+
+.toc-twisty::before {
+  content: '+';
+}
+
+.toc-twisty[aria-expanded='true']::before {
+  content: '\2212';
+}
+
+.toc-twisty:hover,
+.toc-twisty:focus-visible {
+  color: var(--accent);
+}
+
+.sheet .rail-group li {
+  position: relative;
+  padding-block: calc((2.75rem - 1.8em) / 2);
+}
+
+.sheet .rail-group li + li {
+  margin: 0;
+}
+
+.sheet .rail-group a::after,
+.sheet .rail-group button::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+/* On a phone the article is the next thing under the thumb already. */
+.sheet .rail-start {
+  display: none;
+}
+
+/* Motion, only for readers who have not asked for none. The button eases out
+   of the way and back; the sheet rises a little as it arrives. Both are short
+   and small, because this is furniture and not the show. Closing is instant
+   for everyone: a menu that lingers on the way out is a menu between the
+   reader and the place they just asked to go.
+   Under reduced motion none of this exists, and the same changes happen as
+   cuts — the button still gets out of the way while the page scrolls, it just
+   does not travel to do it. */
+@media (prefers-reduced-motion: no-preference) {
+  .remote {
+    transition:
+      opacity 160ms ease-out,
+      transform 160ms ease-out;
+  }
+
+  .sheet[open] {
+    animation: sheet-rise 180ms ease-out;
+  }
+
+  .sheet[open]::backdrop {
+    animation: sheet-dim 180ms ease-out;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .remote.is-away {
+    transform: none;
+  }
+}
+
+@keyframes sheet-rise {
+  from {
+    opacity: 0;
+    transform: translateY(1.5rem);
+  }
+}
+
+@keyframes sheet-dim {
+  from {
+    opacity: 0;
+  }
 }
 
 /* ---------------------------------------------------------------- prose --- */
 
-/* Two columns, both starting at the same left edge: prose sets to the measure,
-   and figures, code and the day rules run on past it. Everything shares one
-   margin with the masthead, so the eye has a single vertical line to return to
-   and the extra width goes where extra width is useful. */
+/* One content edge, and now one width for the whole page: prose, figures, code
+   and the day rules all stop at the measure. Figures used to take a wider
+   track, which left a 224px band down the right of the page that was empty for
+   every paragraph and full for every picture — two right edges, and the
+   reader's eye had to pick one. The day rule was the last thing still using
+   that band, and it bought its page-break reading at the price of the article
+   sitting off the middle of the screen. Column width is the better trade: the
+   rule is still the only full-bleed horizontal on the page.
+
+   Still a grid rather than a block, with one column. `.prose` relies on grid
+   items not collapsing their margins — see the `:has()` rule further down,
+   which hand-collapses exactly the pairs that should collapse and leaves the
+   figure and code intervals summing, which is what the rhythm is tuned to. */
 .prose {
   display: grid;
-  grid-template-columns:
-    [wide-start text-start] minmax(0, var(--measure))
-    [text-end] minmax(0, 1fr) [wide-end];
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .prose > * {
-  grid-column: text;
   min-width: 0;
-}
-
-.prose > figure,
-.prose > pre,
-.prose > h1 {
-  grid-column: wide;
-  justify-self: start;
-  width: 100%;
-  max-width: var(--wide);
 }
 
 .prose > p {
@@ -457,9 +1973,17 @@ a:focus-visible {
   text-wrap: pretty;
 }
 
+/* Tighter than the body, because larger type needs proportionally less leading
+   — but only proportionally. Hold a fixed number here and a change to the body
+   will eventually make the opening paragraph's line box *smaller* than the ones
+   under it despite being set larger, which is what happened once already.
+   The invariant is the ratio of the two line boxes, not either number: the lede
+   has always sat at 1.059x the body's, so its leading is
+   `body x 1.059 / 1.15`. At the body's 1.7 that was 1.6, at 1.9 it was 1.75,
+   and at 1.75 it is 1.61 — 38.9px inside 36.8px. */
 .prose > .lede {
   font-size: 1.15em;
-  line-height: 1.6;
+  line-height: 1.61;
 }
 
 /* One rule in the whole article, and it sits immediately before the Epilogue
@@ -476,14 +2000,94 @@ a:focus-visible {
   display: none;
 }
 
-/* Day headings are the spine. Full-width rule, a mono index in the accent, the
-   date large underneath — the same shape every time so that scrolling past one
-   reads as a page turn. */
+/* Day headings are the spine. A rule across the top, a mono index in the
+ * accent, the date large underneath — the same shape every time so that
+ * scrolling past one reads as a page turn.
+ *
+ * That rule is also the one element on the page a scrapbook would not have, so
+ * it is where the hand goes in — and the only place. The masthead rule, the
+ * colophon rule, the contents rule and the figure mounts stay plain hairlines,
+ * because character that is charming once is noise ten times over, and because
+ * those four are doing four different jobs and only this one is a page turn.
+ *
+ * What sits there is a drawn fleuron with a short hand-drawn line running out
+ * of each side of it, generated by drawn-rules.js — no image file, no dependency,
+ * one <svg> per day. The wings stop well short of the column edges on purpose:
+ * a full-width rule over ragged-right text draws a straight edge along the
+ * ragged one and turns the negative space on the right into a shape, and a
+ * centred ornament has no right-hand edge to expose. That is the whole reason
+ * the composition is an ornament with wings rather than a rule with a bump in
+ * the middle.
+ *
+ * Its four numbers — 1.4px of wobble, 1.65px of weight, the fleuron at 0.90,
+ * and a random seed — were chosen by Tani at reference/banner.html, by dragging
+ * sliders against real paragraphs at the real column width until it looked
+ * right. They are not derived from anything and there is nothing to recompute
+ * them from; they were arrived at by looking. The seed is random per rule and
+ * per load, so no two dividers in the article are the same line — but it is
+ * drawn once and held, never per repaint. See drawn-rules.js.
+ *
+ * The border is the fallback and it is always present, so the page has a
+ * divider before, during and after any of this: with no JavaScript it is what
+ * the reader gets, and drawn-rules.js turns it off by taking its colour away
+ * rather than by removing it, so nothing moves by a pixel when the ornament
+ * arrives. Under more contrast, forced colours and print the ornament goes and
+ * the hairline comes back — a reader who asked for more contrast asked for a
+ * line, not a drawing. */
 .prose > h1 {
+  position: relative;
   margin: var(--gap-day) 0 1.6rem;
   padding-top: 1.9rem;
   border-top: 1px solid var(--rule-strong);
   font-weight: 600;
+}
+
+:root.day-rule-drawn .prose > h1 {
+  border-top-color: transparent;
+}
+
+/* Out of flow, so it costs no height and nothing shifts when it lands, and
+   centred on the hairline it replaces. It is allowed to overflow the heading
+   upward into the 5rem of air above it — there is nothing up there.
+   The width caps rather than fills because the ornament has to shrink on a
+   phone without being redrawn: the geometry is generated once and CSS scales
+   that box.
+
+   25.125rem is 402px, the box's own size now the wings are 156px each, so at a
+   full column it renders 1:1 and the 1.65px weight is exactly 1.65px. That cap
+   is load-bearing in a way the old one was not: the wings doubled inside the
+   viewBox, so at any *fixed* render width the whole box scales down and the
+   fleuron shrinks with it. Lengthening the line meant widening this number too,
+   or the ornament would have got longer and quieter at once.
+
+   85% rather than a floor in rem: at 740 it never binds, and on a phone it lets
+   the whole thing scale down together instead of holding a width the fleuron
+   cannot fill. */
+.day-rule {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 50%;
+  width: min(85%, 25.125rem);
+  transform: translate(-50%, -50%);
+  color: var(--rule-strong);
+  line-height: 0;
+  pointer-events: none;
+}
+
+.day-rule svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+@media (prefers-contrast: more), (forced-colors: active) {
+  .day-rule {
+    display: none;
+  }
+
+  :root.day-rule-drawn .prose > h1 {
+    border-top-color: var(--rule-strong);
+  }
 }
 
 .prose > h1:first-child {
@@ -578,9 +2182,136 @@ code {
   overflow-wrap: break-word;
 }
 
+/* A CODE BLOCK IS THE ONE THING ON THIS PAGE THAT LOOKS LIKE WHAT IT IS.
+ *
+ * PRODUCT.md's first principle is the opposite — *"nothing here should look like
+ * the thing it is"* — and everything else obeys it: the callouts are torn paper,
+ * the dividers are drawn by hand, the pictures are mounted, and there is not a
+ * card or a shadow anywhere. This is the exception, and it is an exception on
+ * purpose rather than a lapse. A code block is a TOOL. A reader who has stopped
+ * at eleven lines of GDScript and wants them is looking for a strip along the
+ * top with the language in it and a copy button on the right, because that is
+ * what every place they have ever read code has given them. Tani asked for it in
+ * those words — *"a little header bar, rounded corners, that just types out that
+ * this is GDScript highlighted, and a copy button, and proper line spacing and
+ * indentation — make it look like a code block, how usual connotation is."*
+ * Inventing something here would cost him the convention and buy the page
+ * nothing, because a novel copy button is a copy button nobody finds.
+ *
+ * The exception is fenced, though. It borrows the page's own materials and adds
+ * no new ones: the same `--sunk` field and `--rule` hairline the block already
+ * had, the same mono the captions and the rail are set in, the same
+ * muted-to-accent that `.motion-stub` uses for the only other control in the
+ * article. Nothing here is a colour, a face or a surface the page did not
+ * already own.
+ *
+ * THE RADIUS IS THE ONLY ONE ON THE PAGE. Four pixels, declared once here and
+ * inherited by the two corners that need it. Small enough to read as a cut
+ * rather than as a pill, and it is the whole of what "rounded corners" is
+ * allowed to mean on a page with no other rounded thing on it — if a second
+ * radius ever appears, it takes this value or the page has two. */
+.code {
+  --radius: 4px;
+  margin: 2.25rem 0;
+}
+
+/* The bar. Same field and hairline as the block below it, divided from it by
+   that block's own top border rather than by a second colour: a strip in a
+   third tone would be a new surface token for one element, and the page has
+   four surfaces already and a reason for each of them.
+   Its inline padding is the block's, so the language sits on the same left edge
+   as the first character of code. */
+.code-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.3rem 1.3rem;
+  background: var(--sunk);
+  border: 1px solid var(--rule);
+  border-bottom: 0;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+/* `GDScript`, not `GDSCRIPT`. Every other mono label on this page is uppercased
+   — the day index, the sub-heads, the rail's own label — and this one is not,
+   because it is a proper noun with its own capitals and the bar is a tool
+   surface rather than one of the page's labels. The tracking is what carries the
+   label voice instead.
+   0.78rem and 0.08em are both borrowed rather than chosen: 0.78rem is the size
+   the day index, the meta line, the award, the figure captions and the colophon
+   are already set at, and 0.08em is the tracking on the masthead's back link.
+   The page has five mono sizes in it already and this adds none.
+   4.57:1 on `--sunk` in light, 5.30:1 in dark: the same measurement the syntax
+   theme's comments are held to, because it is the same colour on the same
+   ground. */
+.code-lang {
+  font: 500 0.78rem var(--mono);
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+/* What the button did, in a word. It is an empty `role="status"` in the markup,
+   so a screen reader reads the outcome out and everybody else sees it; the
+   colour is the second signal and never the only one.
+   `margin-inline-start: auto` is what puts this and the button together at the
+   right-hand end without a spacer element. Accent measures 4.55:1 on `--sunk`
+   in light and 5.77:1 in dark — the same value the keywords under it are set
+   at. */
+.code-said {
+  margin-inline-start: auto;
+  font: 500 0.78rem var(--mono);
+  letter-spacing: 0.03em;
+  color: var(--accent);
+}
+
+/* Failure is not a red: there is no red in this palette and inventing one for
+   an outcome that also states itself in words would be a fifth colour on the
+   page for one sentence. Muted is the page's word for quieter, which is what a
+   refusal is next to a success. 4.57:1 on `--sunk`. */
+.code-said.is-failed {
+  color: var(--muted);
+}
+
+/* A real button, reset to the page's voice. It is `inline-flex` with its own
+   block size rather than bare text because it is a pointer target and 2.5.8
+   wants 24px of it; the negative inline margin gives it that without moving the
+   text off the bar's own right edge. */
+.code-copy {
+  font: 500 0.78rem var(--mono);
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 1.5rem;
+  padding-inline: 0.45rem;
+  margin-inline: 0 -0.45rem;
+}
+
+/* Two signals, because the hover state of a control should not be a colour on
+   its own — and because under forced colours the colour is not ours to set and
+   the line is all that is left. */
+.code-copy:hover,
+.code-copy:focus-visible {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.25em;
+}
+
+/* `[hidden]` is a UA rule at the weight of an element selector, so the
+   `display: inline-flex` above beats it and the button would ship visible on a
+   page where nothing can make it work. This is what actually keeps the
+   ships-hidden contract. */
+.code-copy[hidden] {
+  display: none;
+}
+
 /* Block margins only, for the reason `.fig` gives below: an `auto` inline
    margin outranks the grid's `justify-self: start`. It happens to be inert
-   here, because `.prose > pre` fills its track exactly — but a rule that is
+   here, because `.prose > .code` fills its track exactly — but a rule that is
    only correct by accident is one somebody has to work out again later. */
 pre {
   margin: 2.25rem 0;
@@ -588,34 +2319,318 @@ pre {
   background: var(--sunk);
   border: 1px solid var(--rule);
   overflow-x: auto;
-  tab-size: 2;
+  /* FOUR, AND THE PRICE OF IT IS ONE BLOCK. The source is tabbed and this was
+     two, which was the right answer when the reading column was 640px wide and
+     every level of nesting had to be bought back off the line. Four is what
+     Godot's own editor is set to, which is what the author wrote this in and
+     what a reader who opens the same file will see, so the shape of the code on
+     this page and the shape of it in their editor are the same shape. At two,
+     GDScript's tab-indented bodies read as a shallow ripple rather than as
+     structure, which is the half of *"proper line spacing and indentation"*
+     that is about the indentation.
+
+     What it costs, counted rather than waved at. The block's inside is 816.4px
+     and a character is 7.5px, so 108 columns fit at the measure. The longest
+     line in each of the eleven, in columns, goes 132/49/105/107/41/86/52/57/
+     89/77/123 at a tab of two and 134/51/105/109/41/88/52/57/91/79/127 at four.
+     So two blocks overflowed the column and three do — the new one is the
+     fourth, which lands on 109 and is over by a single character, twelve pixels
+     — and the two that already overflowed gained 20px of sideways scroll each.
+     At 768 it is five blocks becoming six; at 390 all eleven overflow at either
+     value and always did. Every one of them is a focusable scroll container
+     (`tabindex="0"` in build.ts) and wraps rather than truncating on paper, so
+     the mechanism that pays this is already there and already tested. */
+  tab-size: 4;
+
+
+/* THE LEADING WAS NEVER BEING APPLIED, and this is the fix rather than a taste
+   change. It was declared on `pre code` — but `<code>` is an inline box, and the
+   height of a line in a block comes from the larger of that box and the BLOCK's
+   own strut. `<pre>` set neither a size nor a face, so its strut was the body's:
+   18.5px of serif at the body's 1.6, which is 29.6px. Measured on the built
+   page, the step from one line of code to the next was 29.6px while the rule
+   below it said 22.4. Every block on this page has been set at 2.31 times its
+   own type size — half again what code is ever set at — which is most of why
+   Tani's list of what a code block should have started with *"proper line
+   spacing"*.
+
+   So the size and the leading are stated on the block, where the strut is, and
+   the `<code>` inherits them. 1.7 is 21.8px at the block's 12.8px: enough that a
+   long function reads a line at a time rather than as a grey field, and not so
+   much that the blank lines GDScript is full of turn into gaps. The body is at
+   1.6 and it is the wider measure — code lines are short, ragged and scanned up
+   and down for a name, which is what buys the extra tenth. The face comes with
+   them, so the box a line is measured in is the face the line is set in rather
+   than the UA's own `monospace` standing in behind the code. */
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  line-height: 1.7;
 }
 
 pre code {
-  font-size: 0.8rem;
-  line-height: 1.65;
+  font-size: inherit;
   white-space: pre;
+}
+
+/* Inside the block, the `<pre>` has given up its own margin and the top two
+   corners to the bar. */
+.code pre {
+  margin: 0;
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+
+/* THE SYNTAX THEME. Eleven blocks of GDScript, tokenised at build time by
+ * `highlightGdscript` in build.ts — no library, no runtime, nothing added to
+ * `"dependencies": {}` or to the devDependencies either.
+ *
+ * THREE MARKS, AND A REASON FOR THE SPLIT. The lexer emits seven kinds and this
+ * is where the number of hues is decided, because that is a design question and
+ * not a lexical one. Five hues in a code block would fight the article around
+ * it, so the seven collapse to three along the one line that means something in
+ * somebody else's code:
+ *
+ *   the accent    — GRAMMAR. What the language says: `func`, `var`, `extends`,
+ *                   `if`, `return`, `@export`, `self`, `true`. The page's
+ *                   existing word for "this one", already carrying the day
+ *                   index and the award line.
+ *   `--code-lit`  — VOCABULARY. What the author brought: the types he named,
+ *                   the strings he wrote, the numbers he chose, the nodes he
+ *                   pointed at. `extends CharacterBody2D` is one of each.
+ *   `--muted`     — comments, which are the one thing here that is quieter than
+ *                   the code rather than louder.
+ *
+ * Everything else — identifiers, function names, operators, punctuation, the
+ * majority of every block — stays plain ink. A theme is what it does not colour.
+ *
+ * MEASURED AGAINST `--sunk`, WHICH IS THE GROUND THESE ARE DRAWN ON, not against
+ * the paper. Light: ink 9.42:1, accent 4.55:1, `--code-lit` 4.55:1, muted
+ * 4.57:1. Dark: 13.57, 5.77, 5.81, 5.30. Print: 17.17, 7.07, 7.03, 8.86. The
+ * floor is 4.5:1 and the tightest value on the page is the light comment at
+ * 4.57 — a syntax theme where a comment fails contrast is worse than no theme. */
+.tk-key,
+.tk-ann {
+  color: var(--accent);
+}
+
+.tk-type,
+.tk-str,
+.tk-num,
+.tk-path {
+  color: var(--code-lit);
+}
+
+.tk-com {
+  color: var(--muted);
+}
+
+/* Twice out of the way.
+ *
+ * Under forced colours the system owns every foreground, and a theme that tried
+ * to survive it would be a page arguing with a reader's own settings; these
+ * hand every span back to `currentColor` so the block is one system colour.
+ * Under `prefers-contrast: more` the same call the drawn rules make: somebody who
+ * asked for more contrast asked for text, not for a palette, and the comment
+ * that reads at 4.57:1 is the thing they are asking about. */
+@media (prefers-contrast: more), (forced-colors: active) {
+  .tk-key,
+  .tk-ann,
+  .tk-type,
+  .tk-str,
+  .tk-num,
+  .tk-path,
+  .tk-com {
+    color: inherit;
+  }
+
+  /* The bar goes the same way as everything else in here: a reader who asked for
+     more contrast asked for text at full strength, and under forced colours the
+     three foregrounds in this strip are the system's to choose. The button keeps
+     its underline on hover, which is the signal that survives both. */
+  .code-lang,
+  .code-said,
+  .code-copy,
+  .code-copy:hover,
+  .code-copy:focus-visible {
+    color: inherit;
+  }
 }
 
 /* --------------------------------------------------------------- asides --- */
 
+/* Three of these in six thousand words — the author's own Notion callouts, and
+ * the only element on the page that carries an emoji.
+ *
+ * They used to be `border-left: 2px solid var(--accent)`, which is what a
+ * callout looks like in every framework ever written, and Tani read it as
+ * exactly that: *"a very geometric way of doing things... it's a very general
+ * way of showing block notes and just feels outside. It doesn't feel like it
+ * meshes."* The craft floor names the same thing — a coloured left border above
+ * a hairline is the category's default, not a decision.
+ *
+ * WHAT IT IS NOW: a slip of different stock, laid on the page, torn all the way
+ * round. Not a pen mark — the day rule, the masthead rule and the link
+ * underlines are already three pen marks, and a fourth would have been the same
+ * callout wearing a nicer border. This is paper behaviour instead, which is what
+ * PRODUCT.md's scrapbook section actually asks for: *"things that were put on a
+ * page rather than printed on it. Torn and cut edges, overlap."*
+ *
+ * `--slip` is a step LIGHTER than the ground where `--sunk` is a step darker,
+ * and that is the whole distinction between the two surfaces: a code block is a
+ * hole cut in the page, an aside is something laid on top of it. A reader never
+ * has to be told which is which, and the two can sit in the same screenful
+ * without being confused.
+ *
+ * It stays quiet. The step is 1.09:1 in light and 1.17:1 in dark — the same
+ * order as `--sunk`'s 1.08 and 1.07 — and there is no accent in it anywhere.
+ * The emoji is the only colour, which is how it was.
+ *
+ * The tear is a `mask-image`, generated at build time by build.ts from the same
+ * `wander` that draws every other line here. An alpha mask carries no colour, so
+ * one bake serves the light palette and both dark ones; it needs no script, so
+ * the aside is torn before anything runs; and it costs no layout, so nothing
+ * moves. `--torn` and a `--torn-*` tile per side are written into the
+ * stylesheet under this file — see the generated block at the bottom of the
+ * page's <style>.
+ *
+ * IT WAS TORN TOP AND BOTTOM ONLY, and that read as damage rather than as
+ * paper: Tani, *"The edges cut off on these panels."* Nothing was clipping the
+ * note. The two tears were tiles running the full width of the box, and the
+ * box's own sides stopped them dead mid-wiggle — fibre band and all — over a
+ * square corner, which is exactly what a long torn strip looks like with its
+ * ends cropped off by the column. A scrap torn out of a sheet is torn on every
+ * side, and its corners are wherever two tears met; see the ALL FOUR SIDES note
+ * over the tile constants in build.ts.
+ *
+ * The padding carries `--torn` on top of its own air on all four sides, so the
+ * text sits the same distance from every tear as it would from a clean edge.
+ * That costs the measure 20px. Measured at 1920, 1440, 1024, 800 and an iPhone
+ * 13, three of the fifteen note-and-width pairs wrap to one more line and the
+ * rest do not move — the price of the slip not looking cut. */
+/* THE FIBRE EDGE. His note on the version that was only a tear: *"I really like
+ * the shape, but maybe a border following the same shape, but slightly
+ * desaturated, like a torn piece of paper is."*
+ *
+ * Which is the real thing, and the real thing has a reason. A sheet is coated on
+ * its face and raw pulp inside, so a tear exposes the core — lighter, because it
+ * was never printed on, and markedly less saturated, because it is fibre rather
+ * than surface. `--fibre` is `--slip` with four fifths of its chroma taken out
+ * and its lightness lifted a little, derived in OKLab by build.ts rather than
+ * picked beside it; the band is 2.5px and it follows the tear exactly, because
+ * both are read off the same array of numbers. See the torn-edge block at the
+ * bottom of this page's <style>.
+ *
+ * It sits INSIDE the silhouette, hugging the tear, which is where the pale core
+ * of a real torn sheet is — there is nothing outside a torn edge. It also means
+ * the note's box does not grow and no paragraph moves.
+ *
+ * Four background layers on the slip, one per edge, each in a strip one band
+ * deeper than the tear so the fibre has somewhere to sit. `background-color`
+ * rather than the `background` shorthand, which would reset them. */
 .note {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  column-gap: 0.85rem;
-  margin: 2.25rem 0;
-  padding: 0.1rem 0 0.1rem 1.15rem;
-  border-left: 2px solid var(--accent);
+  column-gap: 0.8rem;
+  margin: 2.4rem 0 2.6rem;
+  padding:
+    calc(var(--torn, 0px) + 1.05rem)
+    calc(var(--torn, 0px) + 1.35rem)
+    calc(var(--torn, 0px) + 1.15rem);
+  background-color: var(--slip);
   font-size: 0.95em;
+
+  /* Three notes, three different tears. The tiles are longer than the column,
+     so without an offset every aside in the article would open on the same notch
+     — the same objection the day rule answers with a fresh seed per rule, and
+     the link underlines with a random starting phase. There are three of these
+     and they are thousands of pixels apart, so three fixed offsets are enough
+     and cost no script; the numbers are only required to be unequal and not to
+     be multiples of each other.
+     They are properties rather than repeated coordinates because the mask and
+     the fibre band both have to be phased by the same amount, and two lists of
+     the same numbers is a band that slides off its own tear the day one list is
+     edited. The sides are phased along y the same way, for the same reason. */
+  --torn-x-top: 0px;
+  --torn-x-bottom: 0px;
+  --torn-y-left: 0px;
+  --torn-y-right: 0px;
+
+  background-image: var(--fibre-top), var(--fibre-bottom), var(--fibre-left), var(--fibre-right);
+  background-repeat: repeat-x, repeat-x, repeat-y, repeat-y;
+  background-position:
+    var(--torn-x-top) top,
+    var(--torn-x-bottom) bottom,
+    left var(--torn-y-left),
+    right var(--torn-y-right);
+  background-size:
+    var(--torn-tile-top) calc(var(--torn) + var(--fibre-w)),
+    var(--torn-tile-bottom) calc(var(--torn) + var(--fibre-w)),
+    calc(var(--torn) + var(--fibre-w)) var(--torn-tile-left),
+    calc(var(--torn) + var(--fibre-w)) var(--torn-tile-right);
+
+  /* Four layers, INTERSECTED: each is the whole slip as one edge sees it —
+     its tear, and solid paper from there to the far side of the note — so a
+     pixel survives only where all four edges agree it is paper, and each
+     corner is simply where two tears cross. It used to be a union of two
+     strips and a solid body, which has no way to say "and"; that is why its
+     corners were square. Each tile is sized to the note across its edge and to
+     its own length along it; build.ts pins the tear to the matching side of
+     that box at scale 1, so nothing is ever stretched. See `tornPath`. */
+  mask-image: var(--torn-top), var(--torn-bottom), var(--torn-left), var(--torn-right);
+  mask-repeat: repeat-x, repeat-x, repeat-y, repeat-y;
+  mask-position:
+    var(--torn-x-top) top,
+    var(--torn-x-bottom) bottom,
+    left var(--torn-y-left),
+    right var(--torn-y-right);
+  mask-size:
+    var(--torn-tile-top) 100%,
+    var(--torn-tile-bottom) 100%,
+    100% var(--torn-tile-left),
+    100% var(--torn-tile-right);
+  mask-composite: intersect;
+  mask-origin: border-box;
+  mask-clip: border-box;
+}
+
+.note:nth-of-type(2) {
+  --torn-x-top: -157px;
+  --torn-x-bottom: -211px;
+  --torn-y-left: -97px;
+  --torn-y-right: -173px;
+}
+
+.note:nth-of-type(3) {
+  --torn-x-top: -283px;
+  --torn-x-bottom: -89px;
+  --torn-y-left: -131px;
+  --torn-y-right: -59px;
 }
 
 .note > :not(.note-icon) {
   grid-column: 2;
 }
 
+/* A reader who asked for more contrast asked for an edge, not a texture — the
+   same call the day rule makes two hundred lines up. Under forced colours the
+   slip is overridden by the system anyway, so the tear would be a ragged clip
+   on a field the reader cannot see: worse than nothing. Both get the honest
+   version, which is a hairline top and bottom. */
+@media (prefers-contrast: more), (forced-colors: active) {
+  .note {
+    background: none;
+    padding: 1.05rem 1.35rem;
+    border-block: 1px solid var(--rule-strong);
+    mask-image: none;
+  }
+}
+
+/* The glyph has to sit on the note's first line, so its line box has to be the
+   note's line box. Stating the ratio rather than a number: it was 1.6 against a
+   1.7 body and drifted 2.2px high; inheriting the body's ratio holds it inside
+   0.6px of the note's first baseline at any leading. */
 .note-icon {
   font-size: 1.05rem;
-  line-height: 1.6;
+  line-height: inherit;
 }
 
 .note > p {
@@ -628,16 +2643,37 @@ pre code {
 
 /* -------------------------------------------------------------- figures --- */
 
-/* Never upscaled. `--fig-w` is the transcoded file's own pixel width, written
-   per figure by the build; a 293px scene-tree screenshot stretched to 54rem is
-   a smear, and the reader learns nothing from a bigger blur. */
-.prose > figure {
-  max-width: min(var(--wide), var(--fig-w, 100vw));
-}
-
-/* Block margins only. An `auto` inline margin outranks the grid's
-   `justify-self: start` and would nudge every narrow figure off the left
-   margin the rest of the page is built on. */
+/* ONE PRESENTATION. Every figure is mounted.
+ *
+ * There used to be two, and the build chose between them from the file's own
+ * pixel width: wider than the mount's inside and the figure went flush to the
+ * column, narrower and it sat on a mount. That is a rule, but the thing it is
+ * keyed on — what resolution a screen recorder happened to grab in 2024 — is
+ * invisible from the page, so a reader met forty pictures with two different
+ * edges and nothing to explain which got which. Tani: *"some images fill the
+ * width and some don't, some are left aligned while some are centre aligned. I
+ * don't understand if there's a convention here."* There was one. It was not a
+ * convention a reader could ever have found.
+ *
+ * So: one treatment, one edge, one left margin the whole way down, and the
+ * picture centred on its mount at whatever size it honestly is. Every photograph
+ * pasted onto the page the same way, which is also the scrapbook answer. The
+ * differences between the pictures are now differences between the pictures.
+ *
+ * WHAT IT COSTS, stated where it is paid: the slot is the mount's inside rather
+ * than the column, so it is 794px and not 860. The thirty figures that used to
+ * go flush render 7.7 per cent smaller, and every one of them gained 2rem of
+ * mount on each side plus a hairline, which makes the page about a screen and a
+ * half longer.
+ *
+ * `--fig-w` is the width the picture RENDERS at, written per figure by the
+ * build. It used to be the file's own width with `max-width: 100%` doing the
+ * rest, which is what put seven figures on a shallow non-integer downscale and
+ * let a near-square capture stand 794px tall. Both of those are answered in one
+ * number now, computed by `figureWidth` in embeds.ts from the slot and the
+ * height cap — and the same function is what `media.ts` transcodes against, so
+ * the file and the box cannot drift apart. Nothing is ever upscaled: `--fig-w`
+ * is never wider than the file. */
 .fig {
   margin: 2.5rem 0 2.75rem;
 }
@@ -645,10 +2681,56 @@ pre code {
 .fig img,
 .fig video {
   display: block;
-  width: 100%;
+  width: var(--fig-w, 100%);
+  max-width: 100%;
   height: auto;
+}
+
+/* A passe-partout, which is the one thing a mount is for: it lets a small
+   picture share the page's edge without pretending to be a big one. A sunk
+   field, one hairline and air. No shadow, no radius, no second variant — the
+   moment it gets any of those it stops being a mount and becomes the first
+   card on a page that has none.
+   The picture carries no hairline of its own in here: two concentric rules two
+   rems apart is a box inside a box, and the mount's is the one doing the work.
+   The air is what makes it a mount rather than a tinted box, and 2rem is what
+   the build derives the slot from: 860 less two lots of 2rem and a hairline is
+   794px, which is the width every figure is transcoded and rendered against.
+   Change this number and `MOUNT_PAD_PX` in embeds.ts together. */
+/* DECORATED CORNERS: BUILT, LOOKED AT, AND NOT KEPT. Tani asked whether the
+   mount could carry them — *"like a photo frame of sorts. This could really tie
+   up with the decorator. But if this overdoes it, then I'd rather not do it."*
+   So they were built rather than imagined: four L-brackets of two tapered
+   strokes each, one seed per corner, from the same `handLine` that draws the day
+   rule, baked per palette exactly like the link tiles. Rendered at 1x, with and
+   without, and with the mount's own hairline removed to give the idea its best
+   version. Three findings, in order of weight:
+
+   1. Forty figures. PRODUCT.md's ninth principle is what licensed the torn
+      asides — material goes on *"structural elements that repeat rarely"*,
+      because *"character that is charming once is noise nine times"* — and the
+      same sentence is what refuses this. Three asides is rare. Forty mounts is
+      the other end of that scale, and this page already carries the day rule,
+      the masthead rule, fifty-eight drawn underlines and three torn edges.
+   2. On twenty-four of the forty the picture fills the slot, which leaves 33px
+      between the mount's hairline and the picture's edge. The marks land inside
+      that band, so you get three near-parallel lines in eight pixels and the
+      result reads as registration marks on a proof rather than as corners on a
+      photograph.
+   3. It cannot be the thing he pictured. A photo corner sits on the PICTURE's
+      corners, and the picture here is a bare <img> or <video> with no
+      pseudo-element to hang anything on, so the marks can only ever go on the
+      mount's corners — which is a decorated frame, not an album corner.
+
+   The answer he asked for is no, and he pre-authorised it. */
+.mount {
   background: var(--sunk);
   border: 1px solid var(--rule);
+  padding: clamp(1.25rem, 4vw, 2rem);
+}
+
+.mount > * {
+  margin-inline: auto;
 }
 
 .fig figcaption {
@@ -662,6 +2744,634 @@ pre code {
   font-style: italic;
 }
 
+/* ------------------------------------------------------ drawn figures --- */
+
+/* Diagrams drawn for this page rather than borrowed — see figures.ts. They sit
+   on the same mount as every picture, at the width they were drawn at, and
+   scale down with the column below it.
+
+   Every colour here is a palette token, which is the whole reason the SVG
+   carries classes and not colours: the figures follow light, dark and print
+   with the prose and cannot be left behind by a palette change.
+
+   The wrapper is a size container so that the plot's numbers can grow as the
+   drawing shrinks; see the queries at the end of this block. */
+.drawn {
+  position: relative;
+  width: var(--fig-w, 100%);
+  max-width: 100%;
+  container-type: inline-size;
+}
+
+.drawn > svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+/* The pen: axes and connectors, drawn by hand.js and filled, not stroked. */
+.drawn .fd-pen {
+  fill: var(--muted);
+}
+
+.drawn .fd-head,
+.drawn .fd-tick {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Every box is a slip laid on the mount, the same lift an aside has over the
+   page — a Page inside the Book included. A Page was tried on the paper
+   instead, and on both palettes it read as a hole cut in the Book rather than
+   as a thing held by it, which is the opposite of the lesson. */
+.drawn .fd-box {
+  fill: var(--slip);
+  stroke: var(--muted);
+  stroke-width: 1;
+}
+
+.drawn .fd-name {
+  font-family: var(--serif);
+  font-size: 20px;
+  fill: var(--ink);
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+.drawn .fd-name-head {
+  text-anchor: start;
+}
+
+.drawn .fd-rel,
+.drawn .fd-rel-run {
+  font-family: var(--serif);
+  font-size: 20px;
+  font-style: italic;
+  fill: var(--muted);
+  dominant-baseline: central;
+}
+
+/* The plot. The data points take the accent, the interpolated curve the one
+   other hue the palette owns (the code theme's moss), and the staircase is
+   the muted ink at half strength: behind the curve, there to be found rather
+   than to be read first. */
+.drawn .fd-zero {
+  stroke: var(--rule-strong);
+  stroke-width: 1;
+}
+
+.drawn .fd-curve {
+  fill: none;
+  stroke: var(--code-lit);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+.drawn .fd-held {
+  fill: none;
+  stroke: var(--muted);
+  stroke-opacity: 0.45;
+  stroke-width: 1.25;
+  stroke-linejoin: round;
+}
+
+/* The ring is the mount's own colour, so a point sitting on the curve reads
+   as a point and not as a thickening of the line. */
+.drawn .fd-points circle {
+  fill: var(--accent);
+  stroke: var(--sunk);
+  stroke-width: 2;
+}
+
+.drawn .fd-num {
+  font-family: var(--mono);
+  font-size: 14px;
+  fill: var(--muted);
+}
+
+.drawn .fd-num-x {
+  text-anchor: middle;
+  dominant-baseline: hanging;
+}
+
+.drawn .fd-num-y {
+  text-anchor: end;
+  dominant-baseline: central;
+}
+
+.drawn .fd-num-end {
+  text-anchor: end;
+}
+
+/* The sine figure. The same two colours as the interpolation plot, for the same
+   two jobs: the terracotta is the thing being measured — the point, and its
+   height arriving at the wave — and the moss is the curve it draws. */
+.drawn .fd-circle {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1.25;
+}
+
+.drawn .fd-radius,
+.drawn .fd-arc {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1.25;
+}
+
+.drawn .fd-proj {
+  stroke: var(--muted);
+  stroke-width: 1.25;
+  stroke-dasharray: 3 4;
+}
+
+/* The whole cycle, faint, under the part traced so far: when the point comes
+   round again the pen goes back to the start of a line already there. */
+.drawn .fd-track {
+  fill: none;
+  stroke: var(--code-lit);
+  stroke-opacity: 0.32;
+  stroke-width: 2;
+}
+
+.drawn .fd-tip {
+  fill: var(--accent);
+}
+
+.drawn .fd-read {
+  text-anchor: middle;
+  dominant-baseline: hanging;
+}
+
+/* The height scale sits where the dashed projection crosses on its way to the
+   wave, so its numbers carry a halo of the mount's own colour: the line passes
+   behind "1" and "0" instead of through them. */
+.drawn .fd-sine .fd-num-y {
+  paint-order: stroke;
+  stroke: var(--sunk);
+  stroke-width: 5px;
+  stroke-linejoin: round;
+}
+
+/* The handle. Inert and invisible until figure-sine.js switches the figure
+   live, so with no script there is nothing to grab that does nothing. The
+   target is the only part of the figure that takes a touch for itself; the
+   rest of the drawing scrolls the page like any picture. */
+.drawn .fd-hit {
+  fill: transparent;
+  pointer-events: none;
+}
+
+/* The dot and its ring are drawn over the target, so they must let the pointer
+   through to it: the target is what listens, and what refuses to scroll. */
+.drawn .fd-dot,
+.drawn .fd-ring {
+  pointer-events: none;
+}
+
+.drawn.fd-live .fd-hit {
+  pointer-events: all;
+  cursor: grab;
+  touch-action: none;
+}
+
+.drawn.fd-dragging .fd-hit {
+  cursor: grabbing;
+}
+
+/* The page's focus ring — 2px of accent with air between it and the thing
+   focused — redrawn as a circle, because an outline on an SVG shape is a box
+   round its bounding rectangle. Non-scaling, so it is 2px on a phone too. */
+.drawn .fd-handle {
+  outline: none;
+}
+
+.drawn .fd-ring {
+  fill: none;
+  stroke: none;
+}
+
+.drawn .fd-handle:focus-visible .fd-ring {
+  stroke: var(--accent);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+/* The key is HTML so it wraps; its swatches use the marks' own classes. */
+.drawn .fd-key {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.35rem 1.4rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+  font: 400 0.78rem / 1.4 var(--mono);
+  color: var(--muted);
+}
+
+.drawn .fd-key li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.drawn .fd-swatch {
+  flex: none;
+  overflow: visible;
+}
+
+/* A viewBox shrinks its text with everything else, so the plot's numbers are
+   lifted as the drawing narrows: at least 12px rendered down to a 360px
+   viewport, where the plot is 278px wide. The margins in figures.ts are wide
+   enough to take the largest of these. */
+@container (max-width: 500px) {
+  .drawn .fd-num {
+    font-size: 17px;
+  }
+}
+
+@container (max-width: 420px) {
+  .drawn .fd-num {
+    font-size: 24.5px;
+  }
+
+  /* Once the key has to wrap it becomes a list, and on a phone a centred list
+     at caption size read as too big and as floating. So it takes the label
+     voice the slip and the contents rail use — uppercase mono, tracked, a step
+     under the caption — and hangs from the plot's own left axis, which sits at
+     56 of the drawing's 560: one left edge for the axis and the key. */
+  .drawn .fd-key {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.1rem;
+    margin: 0.75rem 0 0 10%;
+    font: 600 calc(var(--t-rail) * 0.96) / 1.5 var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+  }
+
+  .drawn .fd-swatch {
+    width: 22px;
+    height: 11px;
+  }
+}
+
+/* The coordinate grids. The grid is the paper's own rule colours, every fifth
+   line a step stronger; the point is the terracotta every measured thing on
+   this page is, and its projections to the axes are the moss of a curve. */
+.drawn .fd-gline {
+  fill: none;
+  stroke: var(--rule);
+  stroke-width: 1;
+}
+
+.drawn .fd-gline-major {
+  stroke: var(--rule-strong);
+}
+
+.drawn .fd-gproj {
+  stroke: var(--code-lit);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+}
+
+/* Every label on the grid sits on grid lines, so each carries a halo of the
+   mount's colour and the lines pass behind it rather than through it. */
+.drawn .fd-gnum,
+.drawn .fd-gaxis,
+.drawn .fd-gread {
+  paint-order: stroke;
+  stroke: var(--sunk);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+
+.drawn .fd-gnum {
+  font-family: var(--mono);
+  font-size: 13px;
+  fill: var(--muted);
+}
+
+.drawn .fd-gnum-x {
+  text-anchor: middle;
+  dominant-baseline: hanging;
+}
+
+.drawn .fd-gnum-y {
+  text-anchor: end;
+  dominant-baseline: central;
+}
+
+.drawn .fd-gnum-0 {
+  text-anchor: end;
+  dominant-baseline: hanging;
+}
+
+/* X and Y are the names of variables, so they are set the way the prose would
+   set a variable: the serif's italic. */
+.drawn .fd-gaxis {
+  font-family: var(--serif);
+  font-size: 18px;
+  font-style: italic;
+  fill: var(--ink);
+}
+
+.drawn .fd-gaxis-x {
+  text-anchor: end;
+}
+
+.drawn .fd-gaxis-y {
+  dominant-baseline: hanging;
+}
+
+.drawn .fd-gread {
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 600;
+  fill: var(--ink);
+}
+
+/* Godot's Y-axis. One class on the root, set by the switch, and every visual
+   consequence of it here: the arrow turns from up to down about the origin,
+   and the two sets of Y labels — both in the markup — trade places. All of it
+   in one frame, for everyone. It used to swing and crossfade over a third of a
+   second; Tani asked for it to snap, and he is right — the flip IS the lesson,
+   and an in-between frame where the arrow points sideways and both signs are
+   half visible teaches nothing. */
+.drawn .fd-yset-godot {
+  opacity: 0;
+}
+
+:root.fd-godot-y .drawn .fd-yset-up {
+  opacity: 0;
+}
+
+:root.fd-godot-y .drawn .fd-yset-godot {
+  opacity: 1;
+}
+
+:root.fd-godot-y .drawn .fd-yhead {
+  transform: scale(1, -1);
+}
+
+/* The demonstration's note of which axis it is on, laid over the empty top
+   left of its grid in the label voice: a row below the −10 at the top of the
+   Y-axis, 36 of 460 in from the left, and never wider than the quadrant, so on
+   a phone it wraps rather than running into the axis. Hidden from everyone,
+   screen readers included, until the mode is on. */
+.drawn .fd-gtag {
+  position: absolute;
+  top: 11%;
+  left: 7.8%;
+  max-width: 38%;
+  padding: 0.1rem 0.3rem;
+  background: var(--sunk);
+  font: 600 calc(var(--t-rail) * 0.96) / 1.5 var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--accent);
+  visibility: hidden;
+}
+
+/* It may wrap on a phone, but not at the hyphen: "Y-" and "AXIS" on two
+   lines is two words neither of which means anything. */
+.drawn .fd-nowrap {
+  white-space: nowrap;
+}
+
+:root.fd-godot-y .drawn .fd-gtag {
+  visibility: visible;
+}
+
+/* The switch: a real button with a small track and knob, the Godot logo in
+   the page's ink, and his line under them. The whole button is the target, at
+   least 44px each way, though the track a reader sees is 28 by 16. Its credit
+   is in the page's footer — a control is not a place to read small print.
+
+   WHERE IT GOES. The grid does not move for it: the explorer is centred on its
+   mount at 460, exactly where the demonstration's grid sits a paragraph down.
+   The switch is laid in the mount's top-right corner, half a rem in from the
+   edge, beside the grid rather than in a column of its own.
+
+   It is allowed there only while it cannot touch the drawing. The button is
+   never wider than 9rem (144px) — his quip wraps rather than widening it, so
+   the sum holds whatever font the machine has and whatever the quip says —
+   and the room it needs is the half of the mount right of the grid, less the
+   mount's own 2rem padding: 460 + 2 × (144 + 8 inset + 8 clear − 32) = 716px
+   of mount inside. Desktop has 794. Below 716 — about an 850px window — it
+   goes under the grid instead, flush with the grid's RIGHT edge, because most
+   people scroll a phone with their right thumb. */
+.fig-drawn .mount {
+  position: relative;
+  container: fd-mount / inline-size;
+}
+
+/* The explorer's own box must not be the one the corner control is placed
+   against: it is the grid, and the corner is the mount's. */
+.drawn[data-figure='grid-explore'] {
+  position: static;
+}
+
+.drawn .fd-gridbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.5rem;
+}
+
+.drawn .fd-gridbar[hidden] {
+  display: none;
+}
+
+@container fd-mount (min-width: 716px) {
+  .drawn .fd-gridbar {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    margin: 0;
+  }
+}
+
+/* Track and logo on one line, the quip under them, everything flush right.
+   The first column is empty and takes the slack, so when the quip is the
+   widest thing the track and logo stay together at the right instead of
+   being pushed to opposite ends of it. */
+.drawn .fd-switch {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  justify-items: end;
+  align-items: center;
+  column-gap: 0.4rem;
+  row-gap: 0.15rem;
+  min-width: 44px;
+  min-height: 44px;
+  max-width: 9rem;
+  padding: 0.3rem 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: 400 calc(var(--t-rail) * 0.96) / 1.35 var(--mono);
+  text-align: right;
+  cursor: pointer;
+}
+
+.drawn .fd-switch-track {
+  grid-column: 2;
+}
+
+.drawn .fd-godot-icon {
+  grid-column: 3;
+}
+
+.drawn .fd-quip {
+  grid-column: 1 / -1;
+}
+
+.drawn .fd-switch:hover,
+.drawn .fd-switch[aria-pressed='true'] {
+  color: var(--ink);
+}
+
+.drawn .fd-switch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.drawn .fd-switch-track {
+  position: relative;
+  width: 1.75rem;
+  height: 1rem;
+  border: 1px solid var(--muted);
+  border-radius: 999px;
+}
+
+.drawn .fd-switch-knob {
+  position: absolute;
+  top: 0.125rem;
+  left: 0.125rem;
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.drawn .fd-switch[aria-pressed='true'] .fd-switch-track {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.drawn .fd-switch[aria-pressed='true'] .fd-switch-knob {
+  transform: translateX(0.75rem);
+  background: var(--sunk);
+}
+
+.drawn .fd-godot-icon {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.drawn .fd-switch[aria-pressed='true'] .fd-godot-icon {
+  color: var(--accent);
+}
+
+/* The grid is drawn at 460, so its text needs the same lift on a phone the
+   plots get: 12px or more rendered at a 360px viewport, where the grid is 278
+   wide. */
+@container (max-width: 440px) {
+  .drawn .fd-gnum {
+    font-size: 15px;
+  }
+
+  .drawn .fd-gread {
+    font-size: 17px;
+  }
+
+  .drawn .fd-gaxis {
+    font-size: 20px;
+  }
+}
+
+@container (max-width: 400px) {
+  .drawn .fd-gnum {
+    font-size: 20px;
+  }
+
+  .drawn .fd-gread {
+    font-size: 22px;
+  }
+
+  .drawn .fd-gaxis {
+    font-size: 24px;
+  }
+
+}
+
+/* Forced colours leave SVG paint alone, so a token that resolves to a near-
+   background colour would vanish. Hand the drawing to the system palette. */
+@media (forced-colors: active) {
+  .drawn .fd-pen,
+  .drawn .fd-name,
+  .drawn .fd-rel,
+  .drawn .fd-num,
+  .drawn .fd-tip,
+  .drawn .fd-gnum,
+  .drawn .fd-gaxis,
+  .drawn .fd-gread,
+  .drawn .fd-points circle {
+    fill: CanvasText;
+  }
+
+  .drawn .fd-gnum,
+  .drawn .fd-gaxis,
+  .drawn .fd-gread {
+    stroke: Canvas;
+  }
+
+  .drawn .fd-gline,
+  .drawn .fd-gproj {
+    stroke: CanvasText;
+  }
+
+  .drawn .fd-switch-track,
+  .drawn .fd-switch[aria-pressed='true'] .fd-switch-track {
+    border-color: ButtonText;
+  }
+
+  .drawn .fd-switch-knob {
+    background: ButtonText;
+  }
+
+  .drawn .fd-switch[aria-pressed='true'] .fd-switch-track {
+    background: Highlight;
+  }
+
+  .drawn .fd-head,
+  .drawn .fd-tick,
+  .drawn .fd-box,
+  .drawn .fd-zero,
+  .drawn .fd-curve,
+  .drawn .fd-held,
+  .drawn .fd-circle,
+  .drawn .fd-radius,
+  .drawn .fd-arc,
+  .drawn .fd-proj,
+  .drawn .fd-track {
+    stroke: CanvasText;
+  }
+
+  .drawn .fd-handle:focus-visible .fd-ring {
+    stroke: Highlight;
+  }
+
+  .drawn .fd-box {
+    fill: Canvas;
+  }
+}
+
 .clips-live .clip {
   cursor: pointer;
 }
@@ -673,7 +3383,11 @@ pre code {
    code block, because it is the same kind of hole in the page. */
 .motion-stub {
   display: block;
-  width: 100%;
+  /* The same box the image had, mounted or flush: a stub that filled the whole
+     column where the picture only filled part of it would move the paragraph
+     the reader is on, which is the one thing this control exists to avoid. */
+  width: var(--fig-w, 100%);
+  max-width: 100%;
   background: var(--sunk);
   border: 1px solid var(--rule);
   color: var(--muted);
@@ -689,7 +3403,6 @@ pre code {
 /* ------------------------------------------------------------ colophon --- */
 
 .colophon {
-  max-width: var(--wide);
   margin-top: 5rem;
   padding-top: 1.5rem;
   border-top: 1px solid var(--rule-strong);
@@ -700,6 +3413,63 @@ pre code {
 .colophon p {
   margin: 0 0 0.7em;
   max-width: 46ch;
+}
+
+/* ------------------------------------------------- screen-dependent text --- */
+
+/* The sentences that say where the contents is: `[[wide: …]]`, `[[band: …]]`
+ * and `[[menu: …]]` in the source (`phone` is an old name for `menu`), written
+ * out by build.ts as these three spans — the syntax and its reasons are at
+ * SCREEN_VARIANTS there. Each one is shown exactly where what it says is true,
+ * and is `display: none` everywhere else, which removes it from what a screen
+ * reader reads too and not only from what is drawn.
+ *
+ * NO NEW BREAKPOINTS, and the same two conditions the remote itself runs on.
+ * At 105rem and up the contents is in the right gutter: `wide`. Below that,
+ * with the remote's boot class, it is behind the menu button at any width:
+ * `menu`. Below that without the class — no JavaScript, or a remote that
+ * bailed and took the class back off — it is the band above the article:
+ * `band`.
+ *
+ * The spaces around the spans in the source collapse to one across the hidden
+ * ones, so the sentence reads as one sentence whichever version is left in it. */
+.screen-wide,
+.screen-menu {
+  display: none;
+}
+
+@media (min-width: 105rem) {
+  .screen-wide {
+    display: inline;
+  }
+
+  .screen-band {
+    display: none;
+  }
+}
+
+@media (max-width: 104.99rem) {
+  :root.has-remote .screen-band {
+    display: none;
+  }
+
+  :root.has-remote .screen-menu {
+    display: inline;
+  }
+}
+
+/* Paper has no gutter, no band and no menu button, so all three are untrue on
+   it. Here rather than in the print block below so the three rules stay
+   together, and with the remote rule's own selector so it outweighs that rule,
+   which a printed page — narrower than 105rem — would otherwise match. */
+@media print {
+  .screen-wide,
+  .screen-band,
+  .screen-menu,
+  :root.has-remote .screen-band,
+  :root.has-remote .screen-menu {
+    display: none;
+  }
 }
 
 /* ---------------------------------------------------------------- print --- */
@@ -715,7 +3485,13 @@ pre code {
  * that wraps instead of running off the edge of the sheet, and figures and
  * headings that do not straddle a page break. */
 @media print {
-  :root {
+  /* Both selectors, and the second one is load-bearing: `:root[data-theme]`
+     weighs more than `:root`, so a reader who has forced dark with the theme
+     button would otherwise carry `#e9e6e1` text onto white paper and print a
+     blank sheet — exactly the bug the paragraph above describes, reintroduced
+     by the control that lets him ask for it. */
+  :root,
+  :root[data-theme] {
     color-scheme: light;
 
     --paper: #fff;
@@ -725,7 +3501,13 @@ pre code {
     --rule: #bbbbbb;
     --rule-strong: #888888;
     --sunk: #f4f4f4;
+    /* White on white. A tinted aside on paper is a wash of toner for nothing,
+       and the print block below gives the note a hairline instead. */
+    --slip: #ffffff;
     --underline: #888888;
+    /* The same rotation off this block's own accent, solved against this
+       block's own `--sunk`: 7.03:1, against the accent's 7.07:1. */
+    --code-lit: #515706;
   }
 
   .page {
@@ -737,16 +3519,58 @@ pre code {
     padding-top: 0;
   }
 
-  /* The rail is navigation and the button acts on a document that has stopped
-     being interactive. The other masthead links are references, so they stay
-     and say where they went. */
+  /* The contents rail is navigation and the two buttons act on a document that
+     has stopped being interactive — a sheet of paper has no theme. The left
+     rail's links are references, so they stay and say where they went.
+     The list item goes, not just the button inside it: hiding the control on
+     its own leaves an empty item in the list and a gap where it used to be.
+     The band goes for the plainest reason of the lot: it is a background, a
+     browser does not print one, and a canvas that does print would be a
+     screened picture behind a printed title. */
   .skip,
   .toc,
-  .motion-button {
+  .band,
+  .remote,
+  .rail li:has(button) {
     display: none;
   }
 
-  .masthead-links a::after {
+  /* The ornament is decoration on a sheet of paper, and the hairline under it
+     is what a printed divider should be. Colour rather than the whole border,
+     so the heading sits exactly where it does on screen. The masthead rule goes
+     the same way and for the same reason. */
+  .day-rule,
+  .award-rule {
+    display: none;
+  }
+
+  :root.day-rule-drawn .prose > h1 {
+    border-top-color: var(--rule-strong);
+  }
+
+  :root.award-rule-drawn .slip {
+    border-top-color: var(--rule);
+  }
+
+  /* Backgrounds are not printed unless the reader has gone looking for the
+     setting, so on paper the drawn underline is no underline. A printed article
+     with fifty-eight links in it needs to show which words were links even
+     though none of them can be followed — that is half of why somebody prints
+     this — so the real decoration comes back. */
+  a,
+  .motion-button,
+  .theme-button {
+    background-image: none;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-decoration-color: var(--underline);
+    text-underline-offset: 0.18em;
+  }
+
+  /* Only the ones that go somewhere a sheet of paper can be carried to. The
+     rail's `imtani.dev` is `href="/"` and `start reading` is a fragment; both
+     would print as a slash and a hash, which is noise rather than an address. */
+  .rail a[href^='http']::after {
     content: ' ' attr(href);
     color: var(--muted);
   }
@@ -763,14 +3587,67 @@ pre code {
   }
 
   .prose > figure,
-  .prose > pre,
+  .prose > .code,
   .note {
     break-inside: avoid;
   }
 
-  /* On screen a code block scrolls sideways. Paper does not scroll, so the
-     nine blocks that overflow would simply lose their right-hand halves. */
+  /* The whole bar goes, not only the button in it. The button acts on a
+     clipboard a sheet of paper has not got, and the language beside it is a
+     label for a control that is no longer there — on paper the block is a block
+     of code and says so by being one. With the bar gone the `<pre>` is the whole
+     object again, so it takes its corners back: a radius is a screen affordance
+     and on paper it is four rounded corners for nothing. */
+  .code-bar {
+    display: none;
+  }
+
+  .code pre {
+    border-radius: 0;
+  }
+
+  /* The tear is a mask, and a mask on paper is a shape clipped out of something
+     the printer was never going to lay down: backgrounds do not print, so the
+     slip is white on white and all the tear could do is bite eight pixels off
+     the first and last lines' worth of air. A hairline top and bottom is what a
+     printed aside is, and it is what the more-contrast reader gets on screen for
+     the same reason. */
+  .note {
+    background: none;
+    padding: 0.85rem 0;
+    border-block: 1px solid var(--rule-strong);
+    mask-image: none;
+  }
+
+  /* Forty mounts at 2rem of padding is two extra sheets of paper for air that
+     only exists to give a picture its edges — and on paper the picture has the
+     sheet's own margin doing that job. The hairline stays, because it is the
+     only thing separating a screenshot of a dark editor from the page it is on
+     when the background does not print. */
+  .mount {
+    padding: 0.5rem;
+  }
+
+  /* On screen a code block scrolls sideways. Paper does not scroll, so a block
+     that overflows would simply lose its right-hand half. Three of the ten do
+     at the current column, where five did at 640 — the count follows the
+     measure, which is why this is unconditional rather than aimed at a list. */
   pre code {
     white-space: pre-wrap;
   }
+}
+
+/* Text for assistive technology only: present in the accessible name, absent
+   from the layout. Used where a link's behaviour (a new tab) is worth saying
+   aloud and not worth printing. */
+.vh {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
