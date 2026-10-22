@@ -177,11 +177,11 @@
   font: 400 12.5px/1.5 var(--ed-mono);
   background: var(--ink);
   color: var(--paper);
-  border-left: 4px solid var(--accent);
+  border: 1px solid var(--accent);
   white-space: pre-wrap;
 }
-.ed-toast.is-bad { border-left-color: var(--ed-bad); }
-.ed-toast.is-ok { border-left-color: var(--ed-ok); }
+.ed-toast.is-bad { border-color: var(--ed-bad); }
+.ed-toast.is-ok { border-color: var(--ed-ok); }
 
 /* -------------------------------------------------------------- problems */
 
