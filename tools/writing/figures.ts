@@ -1,5 +1,5 @@
 /**
- * The devlog's drawn figures: diagrams made here rather than borrowed.
+ * Drawn figures: diagrams made here rather than borrowed.
  *
  * Four of the export's pictures were somebody else's diagrams — a Wikipedia
  * plot, a stock infographic, a Has-A slide that had the relationship
@@ -7,13 +7,11 @@
  * the page still ships no framework and no runtime and every figure is in the
  * HTML before any script runs.
  *
- * SELECTED BY THE EXPORT'S OWN REFERENCE. `DRAWN` is keyed exactly the way
- * `SLUGS` and `REMOTE_EMBEDS` in embeds.ts are: by the image reference as the Notion export writes
- * it. `build.ts` looks here before it looks there, so the markdown keeps its
- * `![…](Untitled%207.png)` line untouched, the caption paragraph under it still
- * becomes the figcaption, and the old picture simply stops being emitted. A key
- * may not be in two tables, and a key here that the export no longer embeds is
- * a build error — see build.ts.
+ * SELECTED BY NAME. `DRAWN` is a registry shared by every article: an article
+ * asks for one with `![](figure:<name> "caption")`, and build.ts puts the
+ * figure on a mount like any picture, with the title as its figcaption. A name
+ * that is not here is a build error. The devlog's six are here because the
+ * devlog drew them; nothing about them is devlog-only except their subjects.
  *
  * WHAT A FIGURE IS MADE OF — the sine wave is the first to add a script, and
  * the coordinate grid will be the next:
@@ -70,6 +68,12 @@ export interface DrawnFigure {
    * Optional, and never load-bearing: `render()` alone is the whole figure.
    */
   readonly script?: string;
+  /**
+   * Attribution a figure owes, printed once in the page's footer when the
+   * figure is on the page. `note` is the HTML comment written above it there,
+   * which is where the reason for the credit is said.
+   */
+  readonly credit?: { readonly html: string; readonly note: string };
 }
 
 // ------------------------------------------------------------ the shared pen ---
@@ -574,6 +578,8 @@ function gridFigure(opts: GridOptions): DrawnFigure {
     width: GRID.size,
     label: opts.label,
     script: gridScript,
+    // Only the explorer draws the switch, so only the explorer carries the logo.
+    ...(opts.role === 'explore' ? { credit: GODOT_CREDIT } : {}),
     render() {
       const { size, o, c, n } = GRID;
       const lo = o - n * c;
@@ -677,9 +683,21 @@ function gridFigure(opts: GridOptions): DrawnFigure {
  * the author, the licence and whether it was changed — it was: recoloured to
  * the page's ink.
  */
-export const CREDIT_HTML =
-  'Godot logo by Andrea Calabró, ' +
-  '<a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>, recoloured.';
+const GODOT_CREDIT = {
+  html:
+    'Godot logo by Andrea Calabró, ' +
+    '<a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>, recoloured.',
+  note: `
+          The one credit the page owes: the Godot logo on the coordinate grid's
+          switch is CC BY 4.0, which asks for attribution and for changes to be
+          said. Here rather than beside the switch, which is a control and not a
+          place to read small print. Always present, though the switch is not
+          without JavaScript: the logo's markup ships in the page either way,
+          and a line that appears and disappears with a script is more
+          machinery than a credit is worth. Its wording lives in figures.ts,
+          next to the drawing it credits.
+        `,
+} as const;
 
 const gridExplore = gridFigure({
   name: 'grid-explore',
@@ -700,19 +718,7 @@ const gridDemo = gridFigure({
     'dashed lines to both axes.',
 });
 
-/**
- * Export reference -> the figure drawn in its place. Document order.
- *
- * Keyed exactly as the export writes the embed: a local filename, or, for the
- * one remote GIF, its URL.
- */
-export const DRAWN: Readonly<Record<string, DrawnFigure>> = {
-  'Untitled 1.png': interpolation,
-  'https://steemitimages.com/0x0/http://weeklycoder.com/wp-content/uploads/2015/07/sine-cosine-animation1.gif':
-    sine,
-  'ccb28002-6882-4a34-a9e0-81023c9333c3.png': gridExplore,
-  'https://media.geeksforgeeks.org/wp-content/uploads/20230828114249/Cartesian-Coordinate-System-3-(1).gif':
-    gridDemo,
-  'Untitled 7.png': inheritance,
-  '1be2c78e-b495-4ebe-a4c6-29228a590eff.png': composition,
-};
+/** Every drawn figure, by the name an article asks for it with. */
+export const DRAWN: Readonly<Record<string, DrawnFigure>> = Object.fromEntries(
+  [interpolation, sine, gridExplore, gridDemo, inheritance, composition].map((fig) => [fig.name, fig]),
+);

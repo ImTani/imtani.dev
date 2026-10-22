@@ -1,13 +1,31 @@
 /**
- * Transcode the Rise&Shine devlog's media. Run by hand, output committed.
+ * Transcode original media into an article's media/ folder. Run by hand,
+ * output committed.
  *
- *     npm run devlog:media
+ *     npm run writing:media -- <originals-dir> <slug> [--only name,name]
+ *     npm run devlog:media     (the devlog: ../rise-and-shine-devlog -> rise-and-shine)
+ *
+ * The originals stay where they are — for the devlog, the Notion export in the
+ * private repository, kept as the archive — and `<originals-dir>/media-map.json`
+ * says which file becomes which published name:
+ *
+ *     { "Untitled 3.png": "godot-visual-shader-editor",
+ *       "Recording_2024-06-24_at_03.27.19.gif": "jittery-camera" }
+ *
+ * A still becomes `media/<name>.webp`; a GIF becomes a clip — `<name>.mp4`,
+ * `<name>.webm` and a `<name>.webp` poster — and the article references the
+ * `.mp4`. `--only` re-cuts just the names given, which is the normal way to
+ * use it: the files already published are served `immutable` (see
+ * tools/writing/headers.ts), so a re-encode has to go out under a NEW name, and
+ * re-running the whole map would rewrite bytes nobody asked to change.
+ * Nothing is deleted; the build fails on any file in media/ the article does
+ * not use, which is what catches a leftover.
  *
  * This is deliberately *not* part of `npm run build`. It shells out to ffmpeg
  * for fifty-odd encodes and takes minutes; making every build pay that — and
  * requiring ffmpeg on every machine and in CI — to reproduce bytes that never
- * change would be the wrong trade. The build consumes `public/writing/` and
- * `media.json`, both committed, and never runs ffmpeg.
+ * change would be the wrong trade. The build reads the committed files, and
+ * their sizes off their own headers, and never runs ffmpeg.
  *
  * What it does:
  *
@@ -26,32 +44,16 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import {
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  renameSync,
-  rmSync,
-  statSync,
-  writeFileSync,
-} from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import {
-  MEDIA_MANIFEST_REL,
-  OUT_DIR_REL,
-  SLUGS,
-  SOURCE_DIR_REL,
-  encodeWidth,
-  extensionOf,
-} from './embeds.ts';
+import { DRAFTS_DIR, MEDIA_DIR, PUBLISHED_DIR } from './config.ts';
+import { encodeWidth, extensionOf } from './embeds.ts';
 
-const here = dirname(fileURLToPath(import.meta.url));
-const siteRoot = resolve(here, '../..');
-const sourceDir = resolve(siteRoot, SOURCE_DIR_REL);
-const outDir = resolve(siteRoot, OUT_DIR_REL);
-const manifestPath = resolve(siteRoot, MEDIA_MANIFEST_REL);
+/** Set by `main`: where the originals are read from and the outputs written. */
+let sourceDir = '';
+let outDir = '';
 
 /**
  * The transcode width is no longer a flat cap.
@@ -69,20 +71,16 @@ const manifestPath = resolve(siteRoot, MEDIA_MANIFEST_REL);
  * enlarged and nothing is guessed at here.
  */
 
-export interface MediaEntry {
+/** What one transcode did, for the log. */
+interface MediaEntry {
   readonly kind: 'image' | 'video';
   readonly source: string;
   readonly width: number;
   readonly height: number;
   readonly sourceBytes: number;
   readonly outputBytes: number;
-  /** Encoder note kept for the record: which WebP mode won, and by how much. */
+  /** Encoder note: which WebP mode won, and by how much. */
   readonly note?: string;
-}
-
-export interface MediaManifest {
-  readonly generatedAt: string;
-  readonly entries: Readonly<Record<string, MediaEntry>>;
 }
 
 function ffmpeg(args: readonly string[]): void {
@@ -197,7 +195,7 @@ function convertVideo(source: string, slug: string): MediaEntry {
   // usually would. It writes a random 8-byte SegmentUID into the header, twice,
   // so re-running this script rewrites sixteen bytes of every clip whose video
   // data is identical — same size, same frames, different file. Under
-  // `public/_headers` these names are served `immutable` for a year, so
+  // the generated `_headers` these names are served `immutable` for a year, so
   // committing those sixteen bytes would burn the cache of every returning
   // reader for nothing. After any run, `git checkout` the .webm files whose
   // slugs did not change; the mp4s and the WebPs are deterministic and need no
@@ -248,49 +246,68 @@ function kb(n: number): string {
   return `${(n / 1024).toFixed(0)} KB`;
 }
 
-function main(): void {
-  if (!existsSync(sourceDir)) {
-    throw new Error(
-      `the Notion export is not at ${sourceDir}. It lives outside this repo; ` +
-        `clone or copy it alongside the site directory before running this.`,
-    );
+function main(argv: readonly string[]): void {
+  const onlyAt = argv.indexOf('--only');
+  const only = onlyAt === -1 ? null : new Set((argv[onlyAt + 1] ?? '').split(',').filter(Boolean));
+  const [originals, slug] = argv.filter((arg, i) => !arg.startsWith('--') && i !== onlyAt + 1);
+  if (!originals || !slug) {
+    throw new Error('usage: node tools/writing/media.ts <originals-dir> <slug> [--only name,name]');
   }
 
+  sourceDir = resolve(originals);
+  const mapPath = join(sourceDir, 'media-map.json');
+  if (!existsSync(mapPath)) {
+    throw new Error(`no ${mapPath}: a JSON object from original file name to published name`);
+  }
+  const map = JSON.parse(readFileSync(mapPath, 'utf8')) as Record<string, string>;
+
+  const articleDir = [join(PUBLISHED_DIR, slug), join(DRAFTS_DIR, slug)].find((d) => existsSync(d));
+  if (!articleDir) throw new Error(`no article folder "${slug}" in ${PUBLISHED_DIR} or ${DRAFTS_DIR}`);
+  outDir = join(articleDir, MEDIA_DIR);
   mkdirSync(outDir, { recursive: true });
 
-  // Anything left from a previous run under a slug that has since been renamed
-  // would otherwise sit in the repo forever, shipped and unreferenced.
-  for (const stale of readdirSync(outDir)) rmSync(join(outDir, stale), { force: true });
-
-  const entries: Record<string, MediaEntry> = {};
   let sourceTotal = 0;
   let outputTotal = 0;
+  let count = 0;
 
-  for (const [source, slug] of Object.entries(SLUGS)) {
+  for (const [source, name] of Object.entries(map)) {
+    if (only && !only.has(name)) continue;
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(name)) {
+      throw new Error(`"${name}" is not a usable file name: lower-case letters, digits and hyphens`);
+    }
     if (!existsSync(join(sourceDir, source))) {
-      throw new Error(`${source} is named in SLUGS but is not in the export`);
+      throw new Error(`${source} is named in media-map.json but is not in ${sourceDir}`);
     }
 
     const ext = extensionOf(source);
-    const entry = ext === 'gif' ? convertVideo(source, slug) : convertImage(source, slug);
+    const entry = ext === 'gif' ? convertVideo(source, name) : convertImage(source, name);
 
-    entries[slug] = entry;
+    count += 1;
     sourceTotal += entry.sourceBytes;
     outputTotal += entry.outputBytes;
 
     const delta = ((1 - entry.outputBytes / entry.sourceBytes) * 100).toFixed(0);
     process.stdout.write(
-      `${slug.padEnd(38)} ${kb(entry.sourceBytes).padStart(9)} -> ${kb(entry.outputBytes).padStart(9)}  (-${delta}%)\n`,
+      `${name.padEnd(38)} ${kb(entry.sourceBytes).padStart(9)} -> ${kb(entry.outputBytes).padStart(9)}  (-${delta}%)` +
+        `  ${entry.width}x${entry.height}${entry.note ? `  ${entry.note}` : ''}\n`,
     );
   }
 
-  const manifest: MediaManifest = { generatedAt: new Date().toISOString(), entries };
-  writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
+  if (only) {
+    for (const name of only) {
+      if (!Object.values(map).includes(name)) throw new Error(`--only ${name}: not a name in media-map.json`);
+    }
+  }
 
   process.stdout.write(
-    `\n${Object.keys(entries).length} files: ${kb(sourceTotal)} -> ${kb(outputTotal)} ` +
-      `(-${((1 - outputTotal / sourceTotal) * 100).toFixed(1)}%)\n`,
+    `\n${count} files into ${outDir}: ${kb(sourceTotal)} -> ${kb(outputTotal)}` +
+      (sourceTotal ? ` (-${((1 - outputTotal / sourceTotal) * 100).toFixed(1)}%)` : '') +
+      '\nReference stills as media/<name>.webp and clips as media/<name>.mp4.\n',
   );
 }
 
-main();
+// `import.meta.url === 'file://' + argv[1]` is one slash out on Windows, so
+// the comparison is made on real paths rather than on URL spelling.
+if (process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url))) {
+  main(process.argv.slice(2));
+}

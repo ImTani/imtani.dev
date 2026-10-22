@@ -3,8 +3,14 @@
  *
  *   npm run devlog:edit        ->  http://127.0.0.1:4300
  *
- * Edits the Notion export in place (the export is the source of truth) through
- * a list of prepared "places to change", plus a free paragraph search. Every
+ * Edits articles/rise-and-shine/article.md in place (the article is the
+ * source of truth; the Notion export it came from is an archive now) through
+ * a list of prepared "places to change", plus a free paragraph search. The
+ * cards were written against the Notion export's text; the ones already
+ * applied show as such, and any whose text has since been reformatted — the
+ * captions are image titles now — show as not found and change nothing. A
+ * block editor over the article format (articles/README.md) is to
+ * replace this. Every
  * write matches on exact text, never on line numbers, and refuses unless the
  * text is found exactly as many times as expected. Line endings and encoding
  * are preserved, a timestamped backup goes to `.edit-backups/` beside the
@@ -32,10 +38,7 @@ const siteRoot = resolve(here, '..', '..', '..');
 const FIGURE_TEXT = resolve(here, '..', 'figure-text.json');
 const HTML = join(here, 'editor.html');
 
-const DEFAULT_MD = resolve(
-  siteRoot,
-  '../rise-and-shine-devlog/Rise&Shine Devlog 5aed9b9b966a49abaf401e560ceccd6a.md',
-);
+const DEFAULT_MD = resolve(siteRoot, 'articles/rise-and-shine/article.md');
 const MD = resolve(process.env['DEVLOG_MD'] ?? DEFAULT_MD);
 const BACKUPS = join(dirname(MD), '.edit-backups');
 const STATE = join(BACKUPS, 'editor-state.json');

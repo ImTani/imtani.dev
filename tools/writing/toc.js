@@ -1,4 +1,4 @@
-/* Rise&Shine devlog — inlined into the page by tools/devlog/build.ts.
+/* Rise&Shine devlog — inlined into the page by tools/writing/build.ts.
  *
  * Where you are, in the contents rail.
  *

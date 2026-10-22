@@ -1004,7 +1004,7 @@ export function bPivot(g, pres) {
 
 /* ============================================================ browser === */
 
-var DEFAULTS = {
+export var DEFAULTS = {
   grain: 0.85,
   levels: 6,
   ramp: 0.67,

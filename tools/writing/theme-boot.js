@@ -1,4 +1,4 @@
-/* Rise&Shine devlog — inlined into the <head> by tools/devlog/build.ts.
+/* Rise&Shine devlog — inlined into the <head> by tools/writing/build.ts.
  *
  * The whole of the no-flash problem: if the reader has forced a theme, the
  * attribute has to be on <html> before the first paint, or the page renders in

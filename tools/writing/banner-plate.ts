@@ -1,12 +1,16 @@
 /**
- * Rise&Shine devlog — bake the masthead band's static plate.
+ * Bake an article's masthead band plates: the static screen a reader with no
+ * JavaScript keeps.
  *
- *     node tools/devlog/banner-plate.ts
+ *     npm run writing:banner -- <slug>
+ *     node tools/writing/banner-plate.ts <slug>
  *
  * Run by hand, output committed, exactly like `media.ts`. It is not part of
- * `npm run build` because it reads a source PNG out of the devlog's art
- * folder and writes bytes that only change when the art or the screen
- * settings do.
+ * `npm run build` because it writes bytes that only change when the art or
+ * the screen settings do. Everything it needs is the article's own: the
+ * `banner:` block of its front matter names the art and the two plate files
+ * (all three in its media/ folder) and gives the settings. It finds the slug
+ * among published articles first and then drafts.
  *
  * WHY IT EXISTS. With JavaScript off, `banner.js` never runs and the band
  * would be flat paper. This bakes the identical screen — it imports the pure
@@ -34,12 +38,15 @@
  */
 
 import { deflateSync, inflateSync } from 'node:zlib';
-import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { type Article, readArticle } from './articles.ts';
+import { DRAFTS_DIR, MEDIA_DIR, PUBLISHED_DIR } from './config.ts';
 import {
   BANNER_TOKENS,
+  DEFAULTS,
   bGeometry,
   bPresenceRow,
   bReduceSource,
@@ -50,23 +57,6 @@ import {
 } from './banner.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const siteRoot = resolve(here, '..', '..');
-const repoRoot = resolve(siteRoot, '..');
-
-/**
- * The source art, the name it is served under, and where both it and the
- * plates go.
- *
- * The art is copied rather than referenced because the live band and the plate
- * have to be the same picture to the byte, and one file written by one script
- * is the only way to say that once. `public/_headers` serves this directory
- * `immutable` for a year, so both names carry what they were made at: change
- * the art or the geometry and you change the URL, exactly as re-encoding a clip
- * means changing its slug in embeds.ts.
- */
-const ART_REL = 'rise-and-shine-devlog/covefr.png';
-const ART_OUT = 'banner-art-635.png';
-const OUT_DIR_REL = 'public/writing/rise-and-shine';
 
 /**
  * The band the plate is baked for, and it is the masthead's real one: the
@@ -85,44 +75,50 @@ const PLATE_WIDTH = 860;
 const PLATE_HEIGHT = 304;
 
 /**
- * The settings the owner chose on 16 August 2026, and the geometry around them.
- * These must stay in step with banner-boot.js, which is what the live band is
- * built from; the two are compared pixel for pixel rather than trusted.
- *
- * Two differ from the values in PRODUCT.md and both are recorded there as
- * decided rather than derived here:
- *
- *   rampSpace 'art' with ramp 0.636 / rampWidth 0.97 is his 0.67 / 0.88
- *   restated in the picture's own space. His pair was measured across a 700px
- *   band; this one is 860, and in band space the fade and the picture's left
- *   edge move apart as the band widens until that edge becomes a visible
- *   vertical cut. In art space the two are byte-identical at 700px and the
- *   relationship holds at every width. See THE FADE in banner.js.
- *
- *   travel 120 rather than the module's `null` (all of the surplus, here 196px).
- *   120 shows about 85% of the picture at a pan rate of 0.39; the full surplus
- *   runs at 0.64, past the point the module's author records as a lurch, and in
- *   a masthead this short it reads as a hop rather than a crawl.
+ * What the plate is screened with: the article's banner settings over
+ * banner.js's DEFAULTS, merged the way `createBannerScreen` merges them, so the
+ * plate and the live band's first frame are made from the same numbers by
+ * construction rather than by two lists kept in step. `wiggle` is among them
+ * and matters here although it is a pointer setting: it is also GEOMETRY — the
+ * live band crops that much off the picture's anchored edge to give the lean
+ * somewhere to go (see WIGGLE ROOM in banner.js) — so the plate has to crop the
+ * same or it stops being the live band's first frame.
  */
-const SETTINGS = {
-  grain: 0.85,
-  levels: 6,
-  ramp: 0.636,
-  rampWidth: 0.97,
-  cell: 2,
-  artScale: 1,
-  anchorX: 1,
-  focus: 0.35,
-  travel: 120,
-  direction: -1,
-  rampSpace: 'art' as const,
-  feather: 4,
-  // Not a screen setting but a GEOMETRY one: the live band crops this much
-  // off the picture's anchored edge to give the pointer's wiggle somewhere to
-  // go (see WIGGLE ROOM in banner.js), so the plate has to crop the same or it
-  // stops being the live band's first frame.
-  wiggle: 6,
-};
+export interface PlateSettings {
+  grain: number;
+  levels: number;
+  ramp: number;
+  rampWidth: number;
+  cell: number;
+  artScale: number | 'cover';
+  anchorX: number;
+  focus: number;
+  travel: number | null;
+  direction: number;
+  rampSpace: 'band' | 'art';
+  feather: number;
+  wiggle: number;
+}
+
+export function plateSettings(article: Article): PlateSettings {
+  const given = article.meta.banner?.settings ?? {};
+  const merged = { ...DEFAULTS, ...given } as typeof DEFAULTS;
+  return {
+    grain: merged.grain,
+    levels: merged.levels,
+    ramp: merged.ramp,
+    rampWidth: merged.rampWidth,
+    cell: merged.cell,
+    artScale: merged.artScale,
+    anchorX: merged.anchorX,
+    focus: merged.focus,
+    travel: merged.travel,
+    direction: merged.direction,
+    rampSpace: merged.rampSpace,
+    feather: merged.feather,
+    wiggle: merged.wiggle,
+  };
+}
 
 // ------------------------------------------------------------------ png ---
 
@@ -357,7 +353,7 @@ export function readTokens(css: string, scheme: 'light' | 'dark'): number[][] {
 export function plate(
   art: Raster,
   tones: number[][],
-  opts: typeof SETTINGS & { W: number; H: number; progress: number },
+  opts: PlateSettings & { W: number; H: number; progress: number },
 ): Raster {
   const g = bGeometry({
     W: opts.W,
@@ -389,35 +385,42 @@ export function plate(
 // `import.meta.url === 'file://' + argv[1]` is one slash out on Windows, so
 // the comparison is made on real paths rather than on URL spelling.
 if (process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url))) {
-  const artBytes = readFileSync(join(repoRoot, ART_REL));
-  const art = decodePng(artBytes);
-  const css = readFileSync(join(here, 'page.css'), 'utf8');
-  const outDir = join(siteRoot, OUT_DIR_REL);
-  mkdirSync(outDir, { recursive: true });
+  const slug = process.argv[2];
+  if (!slug) throw new Error('usage: node tools/writing/banner-plate.ts <slug>');
+  const dir = [join(PUBLISHED_DIR, slug), join(DRAFTS_DIR, slug)].find((d) => existsSync(d));
+  if (!dir) throw new Error(`no article "${slug}" in ${PUBLISHED_DIR} or ${DRAFTS_DIR}`);
+  const article = readArticle(dir, dir.startsWith(PUBLISHED_DIR) ? 'published' : 'drafts');
+  const banner = article.meta.banner;
+  if (!banner) throw new Error(`${slug} has no banner: block in its front matter`);
+  const media = (ref: string) => join(article.dir, MEDIA_DIR, ref.slice(MEDIA_DIR.length + 1));
 
-  // The same bytes the plate was screened from, under the name the page loads.
-  writeFileSync(join(outDir, ART_OUT), artBytes);
+  const artBytes = readFileSync(media(banner.art));
+  const art = decodePng(artBytes);
+  const css = readFileSync(join(here, 'page.css'), 'utf8').replace(/\r\n/g, '\n');
+  const settings = plateSettings(article);
 
   const lines: string[] = [];
   for (const scheme of ['light', 'dark'] as const) {
     const tones = readTokens(css, scheme);
     const r = plate(art, tones, {
-      ...SETTINGS,
+      ...settings,
       W: PLATE_WIDTH,
       H: PLATE_HEIGHT,
       progress: 0,
     });
     const png = encodePng(r);
-    const name = `banner-plate-${PLATE_WIDTH}-${scheme}.png`;
-    writeFileSync(join(outDir, name), png);
-    lines.push(`${name} — ${r.width}x${r.height} cells, ${png.length} bytes`);
+    const out = scheme === 'light' ? banner.plateLight : banner.plateDark;
+    writeFileSync(media(out), png);
+    lines.push(`${out} — ${r.width}x${r.height} cells, ${png.length} bytes`);
   }
 
   process.stdout.write(
-    `devlog banner: ${ART_OUT} — ${art.width}x${art.height}, ${artBytes.length} bytes\n` +
+    `banner ${slug}: ${banner.art} — ${art.width}x${art.height}, ${artBytes.length} bytes\n` +
       `  ${lines.join('; ')}\n` +
-      `  baked for a ${PLATE_WIDTH}x${PLATE_HEIGHT} band at cell ${SETTINGS.cell}px.\n` +
+      `  baked for a ${PLATE_WIDTH}x${PLATE_HEIGHT} band at cell ${settings.cell}px.\n` +
       `  CSS: background:url(...) right top/${PLATE_WIDTH}px ${PLATE_HEIGHT}px no-repeat;` +
-      ` image-rendering: pixelated;\n`,
+      ` image-rendering: pixelated;\n` +
+      '  The plates are served immutable: if these bytes changed, rename the files\n' +
+      '  in the banner block rather than reusing the old names.\n',
   );
 }

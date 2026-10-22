@@ -1,4 +1,4 @@
-/* Rise&Shine devlog — inlined into the page by tools/devlog/build.ts.
+/* Rise&Shine devlog — inlined into the page by tools/writing/build.ts.
  *
  * The remote: wherever the page has no gutters, its options behind one
  * floating button.
@@ -31,6 +31,13 @@
  * not something to navigate by — so on a laptop the record stays put and the
  * sheet is the menu alone. Nothing is ever in two places.
  *
+ * THE CONTENTS ARE OPTIONAL. An article can say `toc: false`, and then there is
+ * no contents to move: the sheet holds the record, `Here` and `Elsewhere`, and
+ * everything that works on the contents — the disclosures, the current day, a
+ * contents link closing the sheet — simply has nothing to work on. The rail's
+ * two groups still need a home below the gutters, so the remote is not given up
+ * for the lack of one.
+ *
  * WITH NO SCRIPT there is no remote: the button ships `hidden`, the dialog ships
  * closed, and the rail and contents stay in the flow above the article, which
  * is where they were before this existed. That keeps the contents next to the
@@ -53,13 +60,13 @@
   var elsewhere = document.getElementById('rail-elsewhere');
 
   /* The same test remote-boot.js made, plus the page being the page this was
-     written for. Failing either takes the boot's class back off, which is what
-     puts the rail and contents back above the article below the gutters. */
+     written for — the contents excepted, which an article may leave out. Failing
+     either takes the boot's class back off, which is what puts the rail and
+     contents back above the article below the gutters. */
   if (
     !button ||
     !body ||
     !shut ||
-    !toc ||
     !here ||
     !elsewhere ||
     typeof sheet.showModal !== 'function' ||
@@ -87,12 +94,14 @@
      went — see the slip's comment in build.ts. Then contents, because that is
      what a reader opens a menu for; then the things that act on this page; then
      the ways out. The DOM order is the reading order and the tab order, so the
-     order is decided here and not by any styling of the sheet. The record is
-     optional in a way the others are not: without it the sheet is still the
-     menu, so its absence costs a block rather than the remote. */
+     order is decided here and not by any styling of the sheet. The record and
+     the contents are optional in a way the two groups are not: without either
+     the sheet is still the menu, so its absence costs a block rather than the
+     remote. */
   var record = document.querySelector('.slip > .slip-record');
   var items = (record ? [record] : [])
-    .concat([toc, here.closest('.rail-group'), elsewhere.closest('.rail-group')])
+    .concat(toc ? [toc] : [])
+    .concat([here.closest('.rail-group'), elsewhere.closest('.rail-group')])
     .map(function (node) {
       return { node: node, mark: document.createComment(' remote: back here '), away: false };
     });
@@ -123,6 +132,7 @@
   }
 
   function grow() {
+    if (!toc) return;
     Array.prototype.forEach.call(toc.querySelectorAll('.lvl-1'), function (day, i) {
       var link = day.querySelector('a');
       var sections = day.querySelector('ol');
@@ -177,7 +187,7 @@
      anywhere between left the last line of the record dangling under the
      close bar, which reads as something cut off. */
   function revealCurrent() {
-    var day = toc.querySelector('.lvl-1.is-current-day');
+    var day = toc && toc.querySelector('.lvl-1.is-current-day');
     if (!day) return;
     var frame = sheet.getBoundingClientRect();
     var top = shut.parentElement.getBoundingClientRect().bottom;
@@ -285,11 +295,13 @@
   /* A contents entry navigates and closes. Nothing is prevented: the sheet is
      shut before the link's default action runs, and the default action is the
      same jump the entry makes on a laptop. */
-  toc.addEventListener('click', function (event) {
-    if (!sheet.open) return;
-    var link = event.target.closest && event.target.closest('a[href^="#"]');
-    if (link) close();
-  });
+  if (toc) {
+    toc.addEventListener('click', function (event) {
+      if (!sheet.open) return;
+      var link = event.target.closest && event.target.closest('a[href^="#"]');
+      if (link) close();
+    });
+  }
 
   /* Hide while the page moves, back once it has been still for SETTLE. Any
      direction: a remote that only hid on the way down would sit over the text

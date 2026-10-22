@@ -1,4 +1,4 @@
-/* Rise&Shine devlog — inlined into the page by tools/devlog/build.ts.
+/* Rise&Shine devlog — inlined into the page by tools/writing/build.ts.
  *
  * The theme control. Three states and not two: light, dark, and the machine's
  * own preference, which is the default and the only one that keeps working

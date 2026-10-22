@@ -1,4 +1,4 @@
-/* Rise&Shine devlog — inlined into the page by tools/devlog/build.ts.
+/* Rise&Shine devlog — inlined into the page by tools/writing/build.ts.
  *
  * The motion. Fifteen clips that all begin decoding the moment
  * the document is ready would make a 6,600-word article unreadable on anything

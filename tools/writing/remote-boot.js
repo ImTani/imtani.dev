@@ -1,4 +1,4 @@
-/* Rise&Shine devlog — inlined into the <head> by tools/devlog/build.ts, in the
+/* Rise&Shine devlog — inlined into the <head> by tools/writing/build.ts, in the
  * same blocking tag as theme-boot.js.
  *
  * One class, and the reason it cannot wait for remote.js. Below the gutters the

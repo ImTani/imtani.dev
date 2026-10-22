@@ -1,13 +1,24 @@
 /**
- * Turn the Rise&Shine Notion export into `writing/rise-and-shine.html`.
+ * Turn every article into `writing/<slug>.html`.
  *
- *     npm run devlog          (also runs as the second step of `npm run build`)
+ *     npm run writing          published articles (also the second step of `npm run build`)
+ *     npm run writing:drafts   the same, plus articles/drafts/ from the private repo
+ *     node tools/writing/build.ts [--drafts] [--only <slug>]
  *
- * The devlog has lived on rise-and-shine.thesimple.ink, a Notion-backed host
- * that goes down and silently rewrites its own URLs, and both of Tani's CVs
- * link to it. It won the Most Educational Devlog Prize at Learn You A Game Jam
- * 2024, so it is a credential, and a credential behind a URL somebody else
- * controls is not one. This script gives it a permanent address.
+ * An article is a folder — `articles/<slug>/` when published,
+ * `articles/drafts/<slug>/` in the private repo while it is not — holding `article.md`
+ * and its `media/`. The format is specified in articles/README.md and
+ * checked in articles.ts; config.ts says where the folders are. Everything in
+ * this directory — the template below, page.css, the scripts — is shared, once,
+ * by every article.
+ *
+ * It started as the Rise&Shine devlog's build. The devlog had lived on
+ * rise-and-shine.thesimple.ink, a Notion-backed host that goes down and
+ * silently rewrites its own URLs, and both of Tani's CVs link to it. It won the
+ * Most Educational Devlog Prize at Learn You A Game Jam 2024, so it is a
+ * credential, and a credential behind a URL somebody else controls is not one.
+ * This script gave it a permanent address, and its Markdown — repaired once,
+ * out of the Notion export — is now its source.
  *
  * Markdown is parsed by markdown-it, a devDependency. This script emits the
  * HTML, one inlined stylesheet and six inlined scripts, none of which anything
@@ -26,46 +37,25 @@
  *
  * Cheap and deterministic, so it runs on every build rather than being another
  * thing to remember. The expensive half — ffmpeg — lives in `media.ts` and is
- * invoked by hand; this script only reads the manifest that one leaves behind.
+ * invoked by hand; this script reads each media file's size off its own header.
  */
 
-import { existsSync, readFileSync, mkdirSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { existsSync, readdirSync, readFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import MarkdownIt from 'markdown-it';
 
-import {
-  ALT_OVERRIDES,
-  MEDIA_MANIFEST_REL,
-  MOUNT_INNER_PX,
-  PUBLIC_BASE,
-  REMOTE_EMBEDS,
-  SLUGS,
-  SOURCE_DIR_REL,
-  SOURCE_MARKDOWN,
-  extensionOf,
-  figureWidth,
-  isRemote,
-  remoteWidth,
-} from './embeds.ts';
-import { CREDIT_HTML, DRAWN, type DrawnFigure } from './figures.ts';
+import { type Article, discover, mediaRef, mediaUrl, pageUrl } from './articles.ts';
+import { MEDIA_DIR, OUT_DIR, SITE_ORIGIN, SITE_OWNER, SITE_ROOT } from './config.ts';
+import { MOUNT_INNER_PX, extensionOf, figureWidth, isRemote, remoteWidth } from './embeds.ts';
+import { DRAWN, type DrawnFigure } from './figures.ts';
 import { handLine, mulberry32, wander } from './hand.js';
-import type { MediaEntry, MediaManifest } from './media.ts';
+import { imageSize } from './image-size.ts';
 
 type Token = ReturnType<MarkdownIt['parse']>[number];
 
 const here = dirname(fileURLToPath(import.meta.url));
-const siteRoot = resolve(here, '../..');
-
-const OUT_REL = 'writing/rise-and-shine.html';
-const CANONICAL = 'https://imtani.dev/writing/rise-and-shine';
-const REPO = 'https://github.com/ImTani/LYAGJ2024';
-const JAM = 'https://itch.io/jam/learn-you-a-game-jam-2024';
-const GAME = 'https://infinitani.itch.io/rise-and-shine';
-
-/** The export writes no year. The jam is Learn You A Game Jam 2024. */
-const JAM_YEAR = '2024';
 
 /** Silent reading speed for prose with code in it, rounded to something honest. */
 const WORDS_PER_MINUTE = 220;
@@ -89,59 +79,26 @@ function slugify(value: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
-/** For comparing an image's alt text against the caption Notion duplicates. */
-function fingerprint(value: string): string {
-  return value.toLowerCase().replace(/[^a-z0-9]/g, '');
-}
-
 // ------------------------------------------------------------------- input ---
 
-const sourceDir = resolve(siteRoot, SOURCE_DIR_REL);
-const sourcePath = join(sourceDir, SOURCE_MARKDOWN);
-const outPath = resolve(siteRoot, OUT_REL);
-
 /**
- * The Notion export lives in the private repository this one sits inside, and
- * it stays there — it carries the raw unnamed exports and is not the published
- * artefact. So this is the one generated file in the repo that is committed
- * rather than ignored: CI and the rebake deploy clone only the public repo and
- * have nothing to build it from, and Vite needs the page on disk to take it as
- * an entry.
- *
- * With the export present the page is rebuilt, which is what makes editing it
- * a matter of editing the source. Without it the committed page stands, and
- * only the absence of both is an error — that one is a broken checkout, and
- * failing here says so far more clearly than Rollup's missing-entry message.
+ * A shared file, as text with LF line endings. Git stores these LF, but a
+ * Windows checkout or editor can hand them over CRLF, and a CR pasted into the
+ * page is a byte of difference between a build here and the same build in CI.
  */
-if (!existsSync(sourcePath)) {
-  if (!existsSync(outPath)) {
-    process.stderr.write(
-      `devlog: no export at ${sourcePath}, and no committed page at ${OUT_REL}.\n` +
-        'One of the two has to exist. If this is a clean clone, the page should\n' +
-        'have come with it; if you are regenerating, the private repository\n' +
-        'holding the Notion export needs to be the parent directory.\n',
-    );
-    process.exit(1);
-  }
-  process.stdout.write(`devlog: no export present; keeping the committed ${OUT_REL}\n`);
-  process.exit(0);
+function shared(name: string): string {
+  return readFileSync(join(here, name), 'utf8').replace(/\r\n/g, '\n');
 }
 
-const rawMarkdown = readFileSync(sourcePath, 'utf8');
-
-const manifest = JSON.parse(
-  readFileSync(resolve(siteRoot, MEDIA_MANIFEST_REL), 'utf8'),
-) as MediaManifest;
-
-const css = readFileSync(join(here, 'page.css'), 'utf8');
-const clipScript = readFileSync(join(here, 'clips.js'), 'utf8');
-const themeBoot = readFileSync(join(here, 'theme-boot.js'), 'utf8');
-const themeScript = readFileSync(join(here, 'theme.js'), 'utf8');
-const tocScript = readFileSync(join(here, 'toc.js'), 'utf8');
-const remoteBoot = readFileSync(join(here, 'remote-boot.js'), 'utf8');
-const remoteScript = readFileSync(join(here, 'remote.js'), 'utf8');
-const codeScript = readFileSync(join(here, 'code.js'), 'utf8');
-const drawnRulesScript = readFileSync(join(here, 'drawn-rules.js'), 'utf8');
+const css = shared('page.css');
+const clipScript = shared('clips.js');
+const themeBoot = shared('theme-boot.js');
+const themeScript = shared('theme.js');
+const tocScript = shared('toc.js');
+const remoteBoot = shared('remote-boot.js');
+const remoteScript = shared('remote.js');
+const codeScript = shared('code.js');
+const drawnRulesScript = shared('drawn-rules.js');
 
 /**
  * hand.js, ready to be pasted into a <script> tag.
@@ -153,7 +110,7 @@ const drawnRulesScript = readFileSync(join(here, 'drawn-rules.js'), 'utf8');
  * inside one IIFE below, so `drawn-rules.js` can call `handLine` without
  * anything reaching the global object.
  */
-const handScript = readFileSync(join(here, 'hand.js'), 'utf8').replace(/^export /gm, '');
+const handScript = shared('hand.js').replace(/^export /gm, '');
 
 /**
  * banner.js and its boot, the same way and for the same reason.
@@ -164,8 +121,8 @@ const handScript = readFileSync(join(here, 'hand.js'), 'utf8').replace(/^export 
  * They are concatenated inside one IIFE below so `createBannerScreen` never
  * reaches the global object.
  */
-const bannerScript = readFileSync(join(here, 'banner.js'), 'utf8').replace(/^export /gm, '');
-const bannerBootScript = readFileSync(join(here, 'banner-boot.js'), 'utf8');
+const bannerScript = shared('banner.js').replace(/^export /gm, '');
+const bannerBootScript = shared('banner-boot.js');
 
 /**
  * The remote's face: what the reader sees on the phone's floating menu button.
@@ -394,7 +351,7 @@ const linkRuleCss = (() => {
 
   return [
     '/* ------------------------------------------------- the drawn underline --- */',
-    '/* Generated by tools/devlog/build.ts from tools/devlog/hand.js — the same',
+    '/* Generated by tools/writing/build.ts from tools/writing/hand.js — the same',
     '   generator that draws the day rule and the masthead rule. The rules that',
     '   use these four values are in page.css, above; only the pigment is here,',
     '   because a background-image cannot inherit currentColor and so each tile',
@@ -425,42 +382,70 @@ const linkRuleCss = (() => {
 // -------------------------------------------------------------- the band ---
 
 /**
- * The masthead band's three asset URLs, as custom properties.
+ * The masthead band's two plate URLs, as custom properties.
  *
  * They are generated here rather than written into page.css for the same reason
- * the link tiles are: `PUBLIC_BASE` is one constant in embeds.ts and a second
- * copy of `/writing/rise-and-shine` in a stylesheet is a second place to change
- * it. Everything that decides how the band is used is in page.css.
+ * the link tiles are: the URLs are the article's — the `banner:` block of its
+ * front matter — and a copy of them in a shared stylesheet is a second place to
+ * change them. Everything that decides how the band is used is in page.css.
  *
- * All three names carry the geometry they were baked at, because
- * `public/_headers` serves this directory `immutable` for a year: re-baking a
- * plate at a different band means a new URL, exactly as re-encoding a clip means
- * a new slug. See the note at the top of that file.
+ * The devlog's names carry the geometry they were baked at, because the
+ * generated `_headers` serves every article's media `immutable` for a year:
+ * re-baking a plate at a different band means a new URL, exactly as
+ * re-encoding a clip means a new file name. See tools/writing/headers.ts.
  */
-const BANNER_ART = `${PUBLIC_BASE}/banner-art-635.png`;
-const BANNER_PLATE_LIGHT = `${PUBLIC_BASE}/banner-plate-860-light.png`;
-const BANNER_PLATE_DARK = `${PUBLIC_BASE}/banner-plate-860-dark.png`;
+function bannerCss(plateLight: string, plateDark: string): string {
+  return [
+    '/* ------------------------------------------------------ the band plates --- */',
+    "/* Written by tools/writing/build.ts from the banner block of the article's",
+    '   front matter. The plates are what a reader with no JavaScript keeps: the',
+    '   identical screen, baked at the rest offset by tools/writing/banner-plate.ts.',
+    '   Three cases, in step with the palette blocks at the top of page.css. */',
+    ':root {',
+    `  --band-plate: url("${plateLight}");`,
+    '}',
+    '',
+    '@media (prefers-color-scheme: dark) {',
+    "  :root:where(:not([data-theme='light'])) {",
+    `    --band-plate: url("${plateDark}");`,
+    '  }',
+    '}',
+    '',
+    ":root[data-theme='dark'] {",
+    `  --band-plate: url("${plateDark}");`,
+    '}',
+  ].join('\n');
+}
 
-const bannerCss = [
-  '/* ------------------------------------------------------ the band plates --- */',
-  '/* Written by tools/devlog/build.ts from PUBLIC_BASE in tools/devlog/embeds.ts.',
-  '   The plates are what a reader with no JavaScript keeps: the identical screen,',
-  '   baked at the rest offset by tools/devlog/banner-plate.ts. Three cases, in',
-  '   step with the palette blocks at the top of page.css. */',
-  ':root {',
-  `  --band-plate: url("${BANNER_PLATE_LIGHT}");`,
-  '}',
-  '',
-  '@media (prefers-color-scheme: dark) {',
-  "  :root:where(:not([data-theme='light'])) {",
-  `    --band-plate: url("${BANNER_PLATE_DARK}");`,
-  '  }',
-  '}',
-  '',
-  ":root[data-theme='dark'] {",
-  `  --band-plate: url("${BANNER_PLATE_DARK}");`,
-  '}',
-].join('\n');
+/**
+ * The live band's options, from the article's `banner:` settings, written into
+ * banner-boot.js at `__BANNER_OPTIONS__`. Grouped and ordered the way that file
+ * has always laid them out — the owner's five, the fade, the geometry, the
+ * motion — so the generated call reads like the hand-written one it replaced.
+ * Only the settings the article gives are written; banner.js's DEFAULTS are the
+ * rest, and banner-plate.ts bakes the no-JS plate from the same merge.
+ */
+const BANNER_GROUPS: ReadonlyArray<readonly string[]> = [
+  ['grain', 'levels', 'cell'],
+  ['ramp', 'rampWidth', 'rampSpace'],
+  ['artScale', 'anchorX', 'focus', 'travel', 'direction', 'feather'],
+  ['follow', 'wiggle', 'wiggleSign', 'fps'],
+];
+
+function bannerOptions(settings: Readonly<Record<string, number | string | null>>): string {
+  const lines: string[] = [];
+  const literal = (v: number | string | null) => (typeof v === 'string' ? `'${v}'` : String(v));
+  for (const group of BANNER_GROUPS) {
+    const set = group.filter((key) => key in settings);
+    if (set.length === 0) continue;
+    lines.push('', ...set.map((key) => `    ${key}: ${literal(settings[key] ?? null)},`));
+  }
+  const known = new Set(BANNER_GROUPS.flat());
+  for (const key of Object.keys(settings)) {
+    if (!known.has(key)) throw new Error(`banner setting "${key}" has no place in BANNER_GROUPS in build.ts`);
+  }
+  return lines.join('\n');
+}
 
 // --------------------------------------------------------- the torn edges ---
 
@@ -750,7 +735,7 @@ const tornEdgeCss = (() => {
 
   return [
     '/* -------------------------------------------------------- the torn edge --- */',
-    '/* Generated by tools/devlog/build.ts from tools/devlog/hand.js — the same',
+    '/* Generated by tools/writing/build.ts from tools/writing/hand.js — the same',
     '   wander that draws the day rule, used here as a boundary rather than as a',
     '   stroke. The rules that consume these are on `.note` in page.css, above.',
     '',
@@ -788,8 +773,8 @@ const tornEdgeCss = (() => {
   ].join('\n');
 })();
 
-/** How many figures fill their mount and how many sit smaller on it. */
-const figureCounts = { full: 0, inset: 0 };
+/** How many figures fill their mount and how many sit smaller on it. Per article. */
+let figureCounts = { full: 0, inset: 0 };
 
 /**
  * Put the picture on its mount. Every figure, every time.
@@ -821,7 +806,7 @@ function mount(width: number, media: string): string {
 }
 
 /**
- * The three embeds we do not host are the only part of this page that can rot,
+ * The embeds we do not host are the only part of a page that can rot,
  * and one of them had — the Steemit proxy answers `200 OK` with a 67-byte JSON
  * body saying the image is missing, so it rendered as a broken-image stub in
  * the middle of the trigonometry section and no status-code monitor would ever
@@ -833,194 +818,52 @@ function mount(width: number, media: string): string {
  * is a fact about this machine, not about the URL, and failing the build on a
  * flight would be a worse bug than the one this catches.
  */
-async function checkRemoteEmbeds(): Promise<void> {
+async function checkRemoteEmbeds(urls: readonly string[]): Promise<void> {
   await Promise.all(
-    Object.values(REMOTE_EMBEDS).map(async (embed) => {
+    [...new Set(urls)].map(async (url) => {
       let response: Response;
       try {
-        response = await fetch(embed.url, {
+        response = await fetch(url, {
           method: 'HEAD',
           redirect: 'follow',
           signal: AbortSignal.timeout(15_000),
         });
       } catch (error) {
         const why = error instanceof Error ? error.message : String(error);
-        process.stderr.write(`devlog: could not reach ${embed.url} (${why}); not checked\n`);
+        process.stderr.write(`writing: could not reach ${url} (${why}); not checked\n`);
         return;
       }
 
       const type = response.headers.get('content-type') ?? '(none)';
       if (!response.ok || !type.startsWith('image/')) {
         throw new Error(
-          `remote embed is no longer an image: ${embed.url}\n` +
+          `remote embed is no longer an image: ${url}\n` +
             `  answered ${response.status} ${response.statusText}, content-type ${type}\n` +
-            '  repoint it or drop the figure in tools/devlog/embeds.ts',
+            '  repoint it or drop the figure from the article',
         );
       }
     }),
   );
 }
 
-await checkRemoteEmbeds();
-
 /**
- * Notion writes its callouts as literal `<aside>` blocks with the emoji as the
- * first characters of the text. markdown-it treats an HTML block as opaque up
- * to the next blank line, which would leave the links inside them — and the DRY
- * aside is almost entirely links — as raw markdown on the page. Putting a blank
- * line after the open tag hands the body back to the block parser, which is
- * where it belongs: these are the author's asides, not decoration.
+ * An aside is a line `<aside>`, Markdown, and a line `</aside>` — the shape
+ * Notion wrote its callouts in, kept as the article syntax because it reads as
+ * what it is. An emoji at the very start of the body is the note's icon.
+ * markdown-it treats an HTML block as opaque up to the next blank line, which
+ * would leave the links inside them — and the DRY aside is almost entirely
+ * links — as raw markdown on the page. Putting a blank line after the open tag
+ * hands the body back to the block parser, which is where it belongs: these are
+ * the author's asides, not decoration.
  */
 function unwrapAsides(markdown: string): string {
   return markdown.replace(/^<aside>\r?\n([\s\S]*?)\r?\n<\/aside>$/gm, (_all, inner: string) => {
     const icon = /^(\p{Extended_Pictographic}️?)\s*/u.exec(inner);
     const glyph = icon?.[1] ?? '';
     const body = icon ? inner.slice(icon[0].length) : inner;
-    return `<aside class="note">\n<span class="note-icon" aria-hidden="true">${glyph}</span>\n\n${body.trim()}\n\n</aside>`;
+    const iconHtml = glyph ? `<span class="note-icon" aria-hidden="true">${glyph}</span>\n` : '';
+    return `<aside class="note">\n${iconHtml}\n${body.trim()}\n\n</aside>`;
   });
-}
-
-/**
- * Repair bold links the export tore in half.
- *
- * Notion writes a bold hyperlink as `[**TODO Manager](url):**` — the emphasis
- * opens inside the link text and closes outside it. That is not something any
- * CommonMark parser can pair up, so markdown-it renders the asterisks as
- * literal characters and the page reads `**TODO Manager:**`. Seven of these,
- * all the same shape. Moving the opening `**` outside the link produces exactly
- * what Notion displayed.
- *
- * The destination pattern allows one level of nested parentheses because one of
- * the seven links to `Inheritance_(object-oriented_programming)`.
- */
-function repairBoldLinks(markdown: string): string {
-  return markdown.replace(
-    /\[\*\*([^\]]*?)\]\(((?:[^()\s]|\([^()\s]*\))*)\)([^*\n]{0,2})\*\*/g,
-    (_all, text: string, href: string, trailing: string) => `**[${text}](${href})${trailing}**`,
-  );
-}
-
-/**
- * Two asterisk pairs in the export can never pair up under CommonMark and so
- * survive into the page as visible `**` in the middle of a sentence. Both are
- * in the same paragraph about float numbers, and both are export damage rather
- * than punctuation the author typed — Notion showed bold text, not asterisks.
- *
- * Listed literally, and asserted, so that a changed source fails the build
- * instead of silently leaving the fix unapplied.
- */
-const ORPHAN_EMPHASIS: ReadonlyArray<readonly [string, string]> = [
-  ['numbers**.**', 'numbers.'],
-  ['data **which will be', 'data which will be'],
-];
-
-function stripOrphanEmphasis(markdown: string): string {
-  let result = markdown;
-  for (const [from, to] of ORPHAN_EMPHASIS) {
-    if (!result.includes(from)) {
-      throw new Error(`orphan-emphasis fixup no longer matches the export: "${from}"`);
-    }
-    result = result.split(from).join(to);
-  }
-  return result;
-}
-
-/**
- * ONE FIGURE IS A PHOTOGRAPH OF SOME CODE.
- *
- * Every other code sample in the article is a real block — selectable,
- * searchable, scrollable, and it follows the reader's theme. This one is a
- * screenshot of an editor, so it is none of those things: it cannot be copied,
- * it cannot be read by a screen reader, it is 35KB of pixels for 400 bytes of
- * text, and it renders the same dark editor chrome on a light page. Tani read
- * the inconsistency before anybody explained it. There is no reason for it
- * beyond how the block happened to be pasted into Notion in 2024.
- *
- * The GDScript below is that screenshot, transcribed verbatim, tabs and all.
- * Two of its lines wrap in the image and are single logical lines here, which is
- * the other thing a picture of code cannot tell you.
- *
- * Asserted like the three repairs above it: if the export is regenerated and the
- * figure moves or its caption changes, this throws rather than quietly shipping
- * both the picture and nothing in its place. `gdscript` rather than the `swift`
- * the rest of the export claims, because it is not Swift and this line is ours.
- */
-const CODE_SCREENSHOT = /!\[Player Script\]\(Untitled%2010\.png\)\r?\n\r?\nPlayer Script/g;
-
-const PLAYER_SCRIPT = [
-  '```gdscript',
-  'extends CharacterBody2D',
-  '',
-  '@export_subgroup("Nodes")',
-  '@export var gravity_component: GravityComponent',
-  '@export var input_component: InputComponent',
-  '@export var movement_component: MovementComponent',
-  '@export var jump_component: AdvancedJumpComponent',
-  '@export var animation_component: AnimationComponent',
-  '@export var holder_component: HolderComponent',
-  '',
-  'func _physics_process(delta: float) -> void:',
-  '',
-  '\tvar horizontal_input = input_component.input_horizontal',
-  '',
-  '\tgravity_component.handle_gravity(self, delta)',
-  '\tmovement_component.handle_horizontal_movement(self, horizontal_input)',
-  '\tjump_component.handle_jump(self, input_component.get_jump_input(), input_component.get_jump_input_released())',
-  '\tanimation_component.handle_move_animation(horizontal_input)',
-  '\tanimation_component.handle_jump_animation(jump_component.is_going_up, gravity_component.is_falling, gravity_component.just_landed)',
-  '',
-  '\tmove_and_slide()',
-  '```',
-].join('\n');
-
-function extractCodeScreenshot(markdown: string): string {
-  const found = markdown.match(CODE_SCREENSHOT)?.length ?? 0;
-  if (found !== 1) {
-    throw new Error(
-      `expected exactly one screenshot-of-code figure to replace, found ${found}. ` +
-        'See CODE_SCREENSHOT in build.ts.',
-    );
-  }
-  return markdown.replace(CODE_SCREENSHOT, PLAYER_SCRIPT);
-}
-
-/**
- * Three links point at the Notion page this export came from. In Notion they
- * were references to a sibling page and to two embedded videos; the export
- * flattened all three to the article's own URL. That URL is not public — every
- * one of them is a 404 for a reader, and a link that 404s is worse than no link
- * because it costs a click to discover it was never going anywhere.
- *
- * The referenced videos are not in the export, so there is nothing to repoint
- * them at. Unwrap to the link text: every sentence still reads.
- */
-const DEAD_SELF_LINK = /\[([^\]]*)\]\(https:\/\/app\.notion\.com\/p\/Rise-Shine-Devlog-[^)]*\)/g;
-const DEAD_SELF_LINK_COUNT = 3;
-
-/**
- * One link in the export has no text at all — `[](url)` — so it renders as an
- * anchor wrapping nothing. Invisible, unclickable, and it makes the anchor
- * count lie to anything auditing the page.
- */
-const EMPTY_LINK = /\[\]\([^)]*\)/g;
-const EMPTY_LINK_COUNT = 1;
-
-/**
- * Both counts are asserted rather than best-effort, on the same principle as
- * ORPHAN_EMPHASIS: if the export is ever regenerated and the damage changes
- * shape, the build should stop rather than quietly ship a page with fewer
- * repairs than it claims.
- */
-function dropBrokenLinks(markdown: string): string {
-  const dead = markdown.match(DEAD_SELF_LINK)?.length ?? 0;
-  if (dead !== DEAD_SELF_LINK_COUNT) {
-    throw new Error(`expected ${DEAD_SELF_LINK_COUNT} dead Notion self-links, found ${dead}`);
-  }
-  const empty = markdown.match(EMPTY_LINK)?.length ?? 0;
-  if (empty !== EMPTY_LINK_COUNT) {
-    throw new Error(`expected ${EMPTY_LINK_COUNT} empty link, found ${empty}`);
-  }
-  return markdown.replace(DEAD_SELF_LINK, '$1').replace(EMPTY_LINK, '');
 }
 
 // ------------------------------------------------------------- highlighting ---
@@ -1278,12 +1121,15 @@ const screenRule: InlineRule = (state, silent) => {
 md.inline.ruler.before('link', 'screen', screenRule);
 
 /**
- * Every block on this page is GDScript, and that is now asserted rather than
- * assumed: the export tags them all `swift`, ours is tagged `gdscript`, and a
- * third info string would mean a block this highlighter has no business
- * colouring. So the class the build refused to emit for years — because
- * `language-swift` would have been a claim nothing checked — is emitted now,
- * because it is true and it is checked.
+ * A fence's info string is its language, and the language is a claim the page
+ * repeats — in the bar's label and in a `language-*` class — so it is only ever
+ * the one the author wrote. The Notion export tagged every GDScript block
+ * `swift`, and the build refused to emit that class for years because it would
+ * have been a claim nothing checked; the article now says `gdscript`, which is
+ * true, and is the one language with a highlighter (`HIGHLIGHTERS`). Any other
+ * language is shown plain under its own name: a block with no colour is honest,
+ * a block coloured by a lexer for some other language is not. An untagged block
+ * is labelled "Code" and claims no language at all.
  *
  * `tabindex="0"` because these blocks scroll sideways: every one of them
  * overflows at 390px and at 320px, four do at 768px, and a scroll container that
@@ -1309,24 +1155,36 @@ md.inline.ruler.before('link', 'screen', screenRule);
  * readable, selectable block it was before this existed. The status span next to
  * it is an empty live region, which is where the outcome of a press is said.
  */
-const FENCE_LANGUAGES = new Set(['', 'swift', 'gdscript']);
+const HIGHLIGHTERS: Readonly<Record<string, { readonly name: string; readonly highlight: (code: string) => string }>> = {
+  gdscript: { name: 'GDScript', highlight: highlightGdscript },
+};
+
+/** What the bar calls a language with no highlighter. Unlisted ones show as written. */
+const LANGUAGE_NAMES: Readonly<Record<string, string>> = {
+  bash: 'Shell', c: 'C', cpp: 'C++', cs: 'C#', csharp: 'C#', css: 'CSS', gdshader: 'Godot shader',
+  glsl: 'GLSL', html: 'HTML', java: 'Java', js: 'JavaScript', javascript: 'JavaScript', json: 'JSON',
+  py: 'Python', python: 'Python', rust: 'Rust', sh: 'Shell', shell: 'Shell', sql: 'SQL', text: 'Text',
+  ts: 'TypeScript', typescript: 'TypeScript', yaml: 'YAML',
+};
+
+/** Per article, so each page's buttons are numbered from 1. */
 let fenceCount = 0;
 
 md.renderer.rules['fence'] = (tokens, idx) => {
   const token = tokens[idx];
-  const info = (token?.info ?? '').trim().toLowerCase();
-  if (!FENCE_LANGUAGES.has(info)) {
-    throw new Error(
-      `a code block is tagged "${info}", which this build does not highlight. ` +
-        'Every block in the export is GDScript mislabelled as Swift; see ' +
-        'highlightGdscript in build.ts.',
-    );
+  const info = (token?.info ?? '').trim().toLowerCase().split(/\s+/)[0] ?? '';
+  if (!/^[a-z0-9+#_-]*$/.test(info)) {
+    throw new Error(`a code block is tagged "${info}"; a language is one word of letters and digits`);
   }
+  const highlighter = HIGHLIGHTERS[info];
+  const name = highlighter?.name ?? LANGUAGE_NAMES[info] ?? (info || 'Code');
+  const lang = info ? ` class="language-${escapeHtml(info)}"` : '';
+  const code = token?.content ?? '';
   fenceCount += 1;
   return (
     '<div class="code">' +
     '<div class="code-bar">' +
-    '<span class="code-lang">GDScript</span>' +
+    `<span class="code-lang">${escapeHtml(name)}</span>` +
     '<span class="code-said" role="status"></span>' +
     // The visible word is "Copy", and the name it is given starts with it —
     // WCAG 2.5.3 — then says which of the eleven this one is, because a
@@ -1334,49 +1192,18 @@ md.renderer.rules['fence'] = (tokens, idx) => {
     // times with nothing to tell them apart.
     `<button class="code-copy" type="button" hidden aria-label="Copy code block ${fenceCount}">Copy</button>` +
     '</div>' +
-    '<pre tabindex="0"><code class="language-gdscript">' +
-    `${highlightGdscript(token?.content ?? '')}</code></pre>` +
+    `<pre tabindex="0"><code${lang}>` +
+    `${highlighter ? highlighter.highlight(code) : escapeHtml(code)}</code></pre>` +
     '</div>\n'
   );
 };
-
-/**
- * The export with its damage repaired — which is also what the word count has to
- * be taken from. It used to be taken from `rawMarkdown`, which was the same
- * thing until one of the repairs started removing prose: the screenshot's
- * caption is two words that no longer appear on the page.
- */
-const markdown = dropBrokenLinks(
-  stripOrphanEmphasis(repairBoldLinks(extractCodeScreenshot(unwrapAsides(rawMarkdown)))),
-);
-
-const tokens = md.parse(markdown, {});
 
 function inlineText(token: Token | undefined): string {
   if (!token?.children) return '';
   return md.renderer.renderInlineAsText(token.children, md.options, {});
 }
 
-function inlineHtml(token: Token | undefined): string {
-  if (!token?.children) return '';
-  return md.renderer.renderInline(token.children, md.options, {});
-}
-
-// ------------------------------------------------------------- front matter ---
-
-// The title, byline and tagline become the masthead rather than the first three
-// paragraphs of the article. Asserted rather than searched for: this input is a
-// fixed file, and a silent mismatch would put the byline in the body.
-const front = tokens.splice(0, 9);
-if (front[0]?.type !== 'heading_open' || front[0].tag !== 'h1') {
-  throw new Error('the export no longer opens with its title; check the front matter');
-}
-
-const docTitle = inlineText(front[1]);
-const handle = inlineText(front[4]).replace(/^by\s+/i, '');
-const tagline = inlineText(front[7]);
-
-// -------------------------------------------------------------- transform ---
+// -------------------------------------------------------------- headings ---
 
 interface TocEntry {
   readonly level: 1 | 2 | 3;
@@ -1385,8 +1212,8 @@ interface TocEntry {
   readonly when?: string;
 }
 
-const toc: TocEntry[] = [];
-const usedIds = new Set<string>();
+/** Per article: the ids already given out on the page being built. */
+let usedIds = new Set<string>();
 
 function uniqueId(base: string): string {
   let id = base || 'section';
@@ -1396,29 +1223,41 @@ function uniqueId(base: string): string {
   return id;
 }
 
-const dayDates: string[] = [];
-/** `21 July 2026` — the epilogue heading, which is the article's last edit. */
-let epilogueDate = '';
+/**
+ * `{#some-id}` at the end of any heading sets its anchor, instead of the one
+ * derived from its words. It is taken off the heading before anything reads the
+ * text, so it never reaches the page, the contents or the word count. Worth
+ * using wherever a link to a section should outlive a change to its wording.
+ */
+const EXPLICIT_ID = /\s*\{#([A-Za-z0-9_-]+)\}\s*$/;
 
-/** `June 19, Day 1` and `June 23, Day 5 - June 26, Day 8`, plus the epilogue. */
-function readDayHeading(text: string): { index: string; date: string; slug: string } {
-  const range = /^(.+?),\s*Day\s+(\d+)\s*[-–—]\s*(.+?),\s*Day\s+(\d+)$/i.exec(text);
-  if (range) {
-    return {
-      index: `Days ${range[2]}–${range[4]}`,
-      date: `${range[1]} – ${range[3]}`,
-      slug: `day-${range[2]}-${range[4]}`,
-    };
-  }
-
-  const single = /^(.+?),\s*Day\s+(\d+)$/i.exec(text);
-  if (single) {
-    return { index: `Day ${single[2]}`, date: single[1] ?? '', slug: `day-${single[2]}` };
-  }
-
-  // `# 21 July, 2026` — the note he came back and added two years later.
-  return { index: 'Epilogue', date: text.replace(/,\s*(\d{4})$/, ' $1'), slug: 'epilogue' };
+function takeExplicitId(inline: Token | undefined): string | undefined {
+  const last = inline?.children?.[inline.children.length - 1];
+  if (!inline || last?.type !== 'text') return undefined;
+  const found = EXPLICIT_ID.exec(last.content);
+  if (!found) return undefined;
+  last.content = last.content.slice(0, found.index);
+  inline.content = inline.content.replace(EXPLICIT_ID, '');
+  return found[1];
 }
+
+/**
+ * A part heading — any `#` heading — is a label and, optionally, when:
+ * `# Day 1 | June 19`, `# Epilogue | 21 July 2026`, `# Further reading`. The
+ * label is the big index the drawn rule sits over, and the part after the
+ * first ` | ` is the date line under it and the date beside it in the contents.
+ *
+ * This used to be read out of the devlog's own headings — `June 19, Day 1`,
+ * a range for Days 5–8, a bare date for the epilogue — by a parser that knew
+ * the shape of that one article. The rule an author can see is the better one.
+ */
+function readPartHeading(text: string): { label: string; when?: string } {
+  const at = text.indexOf(' | ');
+  if (at === -1) return { label: text.trim() };
+  return { label: text.slice(0, at).trim(), when: text.slice(at + 3).trim() };
+}
+
+// --------------------------------------------------------------- figures ---
 
 /**
  * A figure drawn in figures.ts, on the same mount as every other figure.
@@ -1445,112 +1284,163 @@ function drawnFigureMarkup(fig: DrawnFigure, caption: string): string {
   );
 }
 
-/**
- * A drawn figure replaces an export image by its reference, so a key in SLUGS
- * as well would have media.ts transcoding a picture nothing shows, and one in
- * REMOTE_EMBEDS would have the build checking a URL nothing links. And a drawn
- * figure whose image the export no longer embeds would silently draw nothing,
- * so every key has to be used — checked after the transform below.
- */
-for (const source of Object.keys(DRAWN)) {
-  if (SLUGS[source]) {
-    throw new Error(`"${source}" is drawn in figures.ts and also named in SLUGS; drop the slug`);
-  }
-  if (REMOTE_EMBEDS[source]) {
-    throw new Error(`"${source}" is drawn in figures.ts and also in REMOTE_EMBEDS; drop the entry`);
-  }
+/** What one article's figures needed, gathered while it renders. */
+interface FigureContext {
+  readonly article: Article;
+  /** Remote URLs, checked after rendering — see `checkRemoteEmbeds`. */
+  readonly remotes: string[];
+  /** Files in media/ the page uses; anything else there is an error. */
+  readonly referenced: Set<string>;
+  /** Footer credits owed by the drawn figures on the page, in order of use. */
+  readonly credits: Map<string, { readonly html: string; readonly note: string }>;
 }
-const drawnUsed = new Set<string>();
 
-function figureMarkup(imageToken: Token, captionHtml: string | null): string {
+/**
+ * `{width=480 height=269 animated}` straight after a remote image: the size
+ * of a picture this build cannot measure, because it is on somebody else's
+ * server and CI may have no network. A local file is measured off its own
+ * header, so it takes no attributes.
+ */
+interface ImageAttrs {
+  readonly width?: number;
+  readonly height?: number;
+  readonly animated?: boolean;
+}
+
+function readAttrs(text: string, where: string): ImageAttrs {
+  const out: { width?: number; height?: number; animated?: boolean } = {};
+  for (const part of text.trim().split(/\s+/).filter(Boolean)) {
+    const kv = /^(width|height)=(\d+)$/.exec(part);
+    if (kv) out[kv[1] as 'width' | 'height'] = Number(kv[2]);
+    else if (part === 'animated') out.animated = true;
+    else throw new Error(`${where}: unknown image attribute "${part}" (width=, height=, animated)`);
+  }
+  return out;
+}
+
+function figureMarkup(ctx: FigureContext, imageToken: Token, attrs: ImageAttrs | null): string {
+  const { article } = ctx;
   const href = imageToken.attrGet('src') ?? '';
-  // Local filenames arrive percent-encoded (`Untitled%201.png`); remote URLs are
-  // already URLs and decoding one would corrupt its query string.
-  const rawSrc = isRemote(href) ? href : decodeURIComponent(href);
   // `content` is the raw alt, emphasis markers and all; an alt of
   // "I can be *efficient*." is read out with the asterisks in it.
-  const altSource = imageToken.children
+  const alt = imageToken.children
     ? md.renderer.renderInlineAsText(imageToken.children, md.options, {})
     : imageToken.content;
 
-  const caption = captionHtml ? `\n  <figcaption>${captionHtml}</figcaption>` : '';
-
   /**
-   * A caption is attached above only when the export's own alt text and the
-   * paragraph under the image are the same string — that is the Notion damage
-   * this build repairs. So wherever a caption exists, repeating that string in
-   * `alt` or `aria-label` makes a screen reader say it twice: once as the
-   * figure's name and once as the image's. The caption is the one that stays,
-   * because it is the one sighted readers get too.
+   * THE TITLE IS THE CAPTION: `![alt](src "caption")`, and the caption is
+   * Markdown, so emphasis and code in it render. Notion wrote every caption
+   * twice — once as the image's alt, once as a paragraph under it — and the
+   * build used to pair the two up and drop one. One place to write it is what
+   * the source says now.
    *
-   * The exception is the handful of figures where we wrote a better
-   * description than the export's — an `ALT_OVERRIDES` entry, or a remote
-   * embed's `alt`. Those are not duplicates of anything and are the only
-   * description of the picture there is, so they are kept.
+   * Alt is the description for someone who cannot see the picture, and it is
+   * normally left EMPTY on a captioned figure, deliberately: a screen reader
+   * reads the figure's caption as its name, so alt text that repeats it is
+   * heard twice. Write alt where it says what the caption does not — the
+   * checkpoint clip, which has no caption, is described entirely by its alt.
    */
-  function describe(authored: string | undefined): string {
-    return authored ?? (captionHtml ? '' : altSource);
-  }
+  const title = imageToken.attrGet('title');
+  const captionHtml = title ? md.renderInline(title) : null;
+  const caption = captionHtml ? `\n  <figcaption>${captionHtml}</figcaption>` : '';
+  const where = `${article.slug}: ${href}`;
 
-  // Drawn here rather than borrowed: the export's image is never emitted, and
-  // the figure is the SVG figures.ts builds in its place. Checked first, because
-  // one of them stands in for a remote GIF. See that file.
-  const drawn = DRAWN[rawSrc];
-  if (drawn) {
-    drawnUsed.add(rawSrc);
+  // Drawn here rather than borrowed: figures.ts builds the SVG, and any alt
+  // written on the reference is ignored because the drawing carries its own
+  // description. See that file.
+  if (href.startsWith('figure:')) {
+    const drawn = DRAWN[href.slice('figure:'.length)];
+    if (!drawn) {
+      throw new Error(`${where}: no drawn figure by that name. There are: ${Object.keys(DRAWN).join(', ')}`);
+    }
+    if (attrs) throw new Error(`${where}: a drawn figure takes no attributes`);
+    if (drawn.credit) ctx.credits.set(drawn.credit.html, drawn.credit);
     return drawnFigureMarkup(drawn, caption);
   }
 
-  if (isRemote(rawSrc)) {
-    // One embed is somebody else's image hosted elsewhere — a Giphy reaction.
-    // Re-hosting it here would be republishing work that is not his, so it
-    // stays where it is and stays attributed by its URL. It is the only part of
-    // this page that can rot; everything else is on our own disk.
+  if (isRemote(href)) {
+    // A remote embed is somebody else's image hosted elsewhere — in the devlog,
+    // a Giphy reaction. Re-hosting it here would be republishing work that is
+    // not his, so it stays where it is and stays attributed by its URL. It is
+    // the only part of a page that can rot; everything else is on our own disk.
     //
     // What they get from us is the same treatment the local figures get: a
-    // measured intrinsic size, so the browser reserves the box before the bytes
+    // declared intrinsic size, so the browser reserves the box before the bytes
     // arrive and `--fig-w` stops a 480px GIF being blown up to fill the slot.
-    const remote = REMOTE_EMBEDS[rawSrc];
-    if (!remote) {
-      throw new Error(
-        `no entry for remote embed "${rawSrc}" — add it to tools/devlog/embeds.ts`,
-      );
+    if (!attrs?.width || !attrs.height) {
+      throw new Error(`${where}: a remote image needs its size, as {width=… height=…} after it`);
     }
-    const alt = describe(remote.alt);
+    ctx.remotes.push(href);
     // `remoteWidth` rather than `figureWidth`, and the difference is the one
     // thing we cannot do for this one: a local file that would take a shallow
     // downscale is re-transcoded until it does not, and there is no such lever on
     // somebody else's server. See embeds.ts.
-    const shown = remoteWidth(remote.width, remote.height);
+    const shown = remoteWidth(attrs.width, attrs.height);
     // An animated GIF has no controls and cannot be paused, so it is the one
     // thing on the page the reader cannot stop. `data-motion` is what the
     // masthead's pause control looks for; see clips.js.
-    const motion = remote.animated ? ' data-motion' : '';
+    const motion = attrs.animated ? ' data-motion' : '';
     return (
       `<figure class="fig fig-remote" style="--fig-w:${shown}px">\n  ` +
       mount(
         shown,
-        `<img src="${escapeHtml(remote.url)}" alt="${escapeHtml(alt)}"` +
-          ` width="${remote.width}" height="${remote.height}"` +
+        `<img src="${escapeHtml(href)}" alt="${escapeHtml(alt)}"` +
+          ` width="${attrs.width}" height="${attrs.height}"` +
           ` loading="lazy" decoding="async" referrerpolicy="no-referrer"${motion} />`,
       ) +
       `${caption}\n</figure>`
     );
   }
 
-  const slug = SLUGS[rawSrc];
-  if (!slug) {
-    throw new Error(`no slug for embedded file "${rawSrc}" — add it to tools/devlog/embeds.ts`);
+  if (attrs) throw new Error(`${where}: a local file is measured from its own header and takes no attributes`);
+
+  // Local paths arrive percent-encoded by markdown-it; the file name does not.
+  const file = mediaRef(article, decodeURIComponent(href));
+  const media = (name: string) => mediaUrl(article.slug, name);
+  const ext = extensionOf(file);
+
+  if (ext === 'mp4') {
+    // A clip is three files from one source, cut by media.ts: the H.264 the
+    // reference names, a VP9 WebM beside it, and a WebP poster of the first
+    // frame. The poster is required — it is what a reader with JavaScript off
+    // sees, and its header is where the clip's size is read from — and the
+    // WebM is used when it is there.
+    const stem = file.slice(0, -'.mp4'.length);
+    const poster = mediaRef(article, `${MEDIA_DIR}/${stem}.webp`, `${where} (its poster, ${stem}.webp)`);
+    const hasWebm = existsSync(join(article.dir, MEDIA_DIR, `${stem}.webm`));
+    const size = imageSize(readFileSync(join(article.dir, MEDIA_DIR, poster)), poster);
+    for (const used of [file, poster, ...(hasWebm ? [`${stem}.webm`] : [])]) ctx.referenced.add(used);
+    // `--fig-w` is the width the picture RENDERS at, not the width of the file;
+    // see the same line for stills below.
+    const shown = figureWidth(size.width, size.height);
+    // WebM first: everything but Safari takes VP9, which is the smaller file,
+    // and Safari falls through to H.264. `controls` is in the markup on purpose
+    // and clips.js removes it — see that file.
+    const label = alt ? ` aria-label="${escapeHtml(alt)}"` : '';
+    return (
+      `<figure class="fig" style="--fig-w:${shown}px">\n  ` +
+      mount(
+        shown,
+        `<video class="clip" data-clip loop muted playsinline controls preload="none"\n` +
+          `         poster="${media(poster)}" width="${size.width}" height="${size.height}"${label}>\n` +
+          (hasWebm ? `    <source src="${media(`${stem}.webm`)}" type="video/webm" />\n` : '') +
+          `    <source src="${media(file)}" type="video/mp4" />\n` +
+          `  </video>`,
+      ) +
+      `${caption}\n</figure>`
+    );
   }
 
-  const entry: MediaEntry | undefined = manifest.entries[slug];
-  if (!entry) {
-    throw new Error(`"${slug}" is not in ${MEDIA_MANIFEST_REL} — run \`npm run devlog:media\``);
+  // No local GIFs: as an <img> one could not be paused, and as a file it is
+  // ten times the size of the clip media.ts would cut from it.
+  if (ext === 'gif') {
+    throw new Error(`${where}: transcode a GIF into a clip with \`npm run writing:media\` and reference its .mp4`);
   }
-
-  // Notion puts the filename in the alt slot when a block has no caption, which
-  // is what a screen reader would then be read out.
-  const alt = describe(ALT_OVERRIDES[rawSrc]);
+  if (!['webp', 'png', 'jpg', 'jpeg'].includes(ext)) {
+    throw new Error(`${where}: a figure is a WebP, PNG or JPEG still, or an .mp4 clip`);
+  }
+  ctx.referenced.add(file);
+  const size = imageSize(readFileSync(join(article.dir, MEDIA_DIR, file)), file);
   // `--fig-w` is the width the picture RENDERS at, not the width of the file.
   // It used to be the file's own width with `max-width: 100%` doing the rest,
   // which is what put seven figures on a shallow non-integer downscale and what
@@ -1559,231 +1449,308 @@ function figureMarkup(imageToken: Token, captionHtml: string | null): string {
   // against — so the file on disk and the box on the page cannot disagree.
   // The `width` and `height` attributes stay the file's own, because that pair
   // is what reserves the box and keeps CLS at zero.
-  const shown = figureWidth(entry.width, entry.height);
-  const style = ` style="--fig-w:${shown}px"`;
-
-  if (extensionOf(rawSrc) === 'gif') {
-    // WebM first: everything but Safari takes VP9, which is the smaller file,
-    // and Safari falls through to H.264. `controls` is in the markup on purpose
-    // and clips.js removes it — see that file.
-    const label = alt ? ` aria-label="${escapeHtml(alt)}"` : '';
-    return (
-      `<figure class="fig"${style}>\n  ` +
-      mount(
-        shown,
-        `<video class="clip" data-clip loop muted playsinline controls preload="none"\n` +
-          `         poster="${PUBLIC_BASE}/${slug}.webp" width="${entry.width}" height="${entry.height}"${label}>\n` +
-          `    <source src="${PUBLIC_BASE}/${slug}.webm" type="video/webm" />\n` +
-          `    <source src="${PUBLIC_BASE}/${slug}.mp4" type="video/mp4" />\n` +
-          `  </video>`,
-      ) +
-      `${caption}\n</figure>`
-    );
-  }
-
+  const shown = figureWidth(size.width, size.height);
   return (
-    `<figure class="fig"${style}>\n  ` +
+    `<figure class="fig" style="--fig-w:${shown}px">\n  ` +
     mount(
       shown,
-      `<img src="${PUBLIC_BASE}/${slug}.webp" alt="${escapeHtml(alt)}"` +
-        ` width="${entry.width}" height="${entry.height}" loading="lazy" decoding="async" />`,
+      `<img src="${media(file)}" alt="${escapeHtml(alt)}"` +
+        ` width="${size.width}" height="${size.height}" loading="lazy" decoding="async" />`,
     ) +
     `${caption}\n</figure>`
   );
 }
 
-/** The lone image in a paragraph of its own, or nothing. */
-function soleImage(inline: Token | undefined): Token | null {
+/**
+ * The lone image in a paragraph of its own, with its `{…}` attributes if it
+ * has them, or nothing. The attribute text is taken out of the paragraph so it
+ * is never counted as words.
+ */
+function soleImage(inline: Token | undefined, where: string): { image: Token; attrs: ImageAttrs | null } | null {
   if (inline?.type !== 'inline' || !inline.children) return null;
   const meaningful = inline.children.filter(
     (child) => !(child.type === 'text' && child.content.trim() === ''),
   );
   const only = meaningful[0];
-  return meaningful.length === 1 && only?.type === 'image' ? only : null;
+  if (only?.type !== 'image') return null;
+  if (meaningful.length === 1) return { image: only, attrs: null };
+  const tail = meaningful[1];
+  const braced = tail?.type === 'text' ? /^\{([^}]*)\}$/.exec(tail.content.trim()) : null;
+  if (meaningful.length !== 2 || !braced || !tail) return null;
+  inline.children = inline.children.filter((child) => child !== tail);
+  return { image: only, attrs: readAttrs(braced[1] ?? '', where) };
 }
 
-const out: Token[] = [];
-let ledeDone = false;
-let seenDay = false;
-
-for (let i = 0; i < tokens.length; i += 1) {
-  const token = tokens[i];
-  if (!token) continue;
-
-  // --- headings: ids, the day treatment, and the table of contents ---
-  if (token.type === 'heading_open') {
-    const inline = tokens[i + 1];
-    const text = inlineText(inline);
-
-    if (token.tag === 'h1') {
-      const day = readDayHeading(text);
-      const id = uniqueId(day.slug);
-      if (day.index === 'Epilogue') epilogueDate = day.date;
-      else dayDates.push(day.date);
-      toc.push({ level: 1, id, label: day.index, when: day.date });
-
-      token.type = 'html_block';
-      token.tag = '';
-      token.nesting = 0;
-      // The empty span is where drawn-rules.js draws the divider. It ships empty
-      // and stays empty without JavaScript, which is why the heading carries a
-      // plain hairline border underneath it either way — see page.css. It is
-      // aria-hidden so a decoration cannot get into the heading's name.
-      token.content =
-        `<h1 id="${id}">` +
-        `<span class="day-rule" aria-hidden="true"></span>` +
-        `<span class="day-index">${escapeHtml(day.index)}</span>` +
-        `<span class="day-date">${escapeHtml(day.date)}</span>` +
-        `</h1>\n`;
-      out.push(token);
-      seenDay = true;
-      i += 2;
-      continue;
-    }
-
-    // "Before You Read" is an h3 that arrives before the first day and so has
-    // no parent to nest under. In the outline it is a section in its own right;
-    // filing it three levels deep under nothing would be a lie about the shape
-    // of the piece.
-    const level = !seenDay ? 1 : token.tag === 'h2' ? 2 : 3;
-    const id = uniqueId(slugify(text));
-    token.attrSet('id', id);
-    toc.push({ level, id, label: text });
-    out.push(token);
-    continue;
-  }
-
-  // --- figures: image, plus the caption paragraph Notion duplicates below it ---
-  if (token.type === 'paragraph_open') {
-    const image = soleImage(tokens[i + 1]);
-    if (image) {
-      let captionHtml: string | null = null;
-      let consumed = 2;
-
-      const nextInline = tokens[i + 4];
-      if (
-        tokens[i + 3]?.type === 'paragraph_open' &&
-        nextInline?.type === 'inline' &&
-        fingerprint(nextInline.content) === fingerprint(image.content) &&
-        fingerprint(image.content) !== ''
-      ) {
-        captionHtml = inlineHtml(nextInline);
-        consumed = 5;
-      }
-
-      token.type = 'html_block';
-      token.tag = '';
-      token.nesting = 0;
-      token.content = `${figureMarkup(image, captionHtml)}\n`;
-      out.push(token);
-      i += consumed;
-      continue;
-    }
-
-    // The first paragraph of the article is the standfirst.
-    if (!ledeDone) {
-      token.attrJoin('class', 'lede');
-      ledeDone = true;
-    }
-  }
-
-  out.push(token);
-}
-
-for (const source of Object.keys(DRAWN)) {
-  if (!drawnUsed.has(source)) {
-    throw new Error(
-      `figures.ts draws a figure for "${source}", which the export no longer embeds. ` +
-        'Repoint or drop it in DRAWN.',
-    );
-  }
-}
-
-const bodyHtml = md.renderer.render(out, md.options, {});
-
-// ----------------------------------------------------------------- masthead ---
-
-const prose = markdown
-  .replace(/```[\s\S]*?```/g, ' ')
-  // One version of the screen-dependent sentence, not all three: see
-  // SCREEN_VARIANTS. `band` is the one with no condition on JavaScript.
-  .replace(/\[\[(wide|menu|phone):[^\]]*\]\]/g, ' ')
-  .replace(/\[\[band:[ \t]*([^\]]*)\]\]/g, '$1')
-  .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
-  .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
-  .replace(/<\/?[a-z][^>]*>/gi, ' ');
-const wordCount = prose.split(/\s+/).filter((word) => /[a-z0-9]/i.test(word)).length;
-const readingMinutes = Math.round(wordCount / WORDS_PER_MINUTE);
-
-const firstDay = dayDates[0] ?? '';
-const lastDay = (dayDates[dayDates.length - 1] ?? '').split('–').pop()?.trim() ?? '';
-const dateRange = `${firstDay} – ${lastDay}, ${JAM_YEAR}`;
+// ---------------------------------------------------------------- reading ---
 
 /**
- * The two dates the structured data was missing, taken from the headings rather
- * than invented: the article was published on the last day it covers, and last
- * changed on the day of the epilogue he came back and added.
- *
- * Parsed through `Date` and asserted, because a heading that stops matching
- * `readDayHeading` would otherwise put `Invalid Date` in the JSON-LD, and a
- * wrong date in structured data is worse than none.
+ * The words a reader reads in the article: headings, prose, lists, asides and
+ * captions. Not code — a code block is not read at reading speed — not alt text,
+ * which a sighted reader never meets, not the masthead, and of the three
+ * screen-dependent sentences only `band`, the one every reader can get (see
+ * SCREEN_VARIANTS). Counted off the parsed article rather than off its source
+ * text, so markup can never be mistaken for a word.
  */
-function isoDay(text: string, what: string): string {
-  const when = new Date(`${text} UTC`);
-  if (Number.isNaN(when.getTime())) {
-    throw new Error(`could not read a date out of the ${what} heading: "${text}"`);
+function countWords(tokens: readonly Token[]): number {
+  let text = '';
+  for (const token of tokens) {
+    if (token.type !== 'inline' || !token.children) continue;
+    let hidden = false;
+    for (const child of token.children) {
+      if (child.type === 'screen_open') hidden = child.attrGet('class') !== 'screen-band';
+      else if (child.type === 'screen_close') hidden = false;
+      else if (hidden) continue;
+      else if (child.type === 'text' || child.type === 'code_inline') text += child.content;
+      else if (child.type === 'softbreak' || child.type === 'hardbreak') text += ' ';
+      else if (child.type === 'image') text += ` ${child.attrGet('title') ?? ''} `;
+    }
+    text += ' ';
   }
-  return when.toISOString().slice(0, 10);
+  return text.split(/\s+/).filter((word) => /[a-z0-9]/i.test(word)).length;
 }
 
-const datePublished = isoDay(`${lastDay} ${JAM_YEAR}`, 'last day');
-const dateModified = isoDay(epilogueDate, 'epilogue');
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
 
-const tocHtml = (() => {
-  const lines: string[] = [];
-  let depth = 0;
+function longDay(iso: string, withYear: boolean): string {
+  const [y, m, d] = iso.split('-').map(Number) as [number, number, number];
+  return `${MONTHS[m - 1]} ${d}${withYear ? `, ${y}` : ''}`;
+}
 
-  for (const entry of toc) {
-    if (depth === 0) {
-      lines.push('<ol>');
-    } else if (entry.level > depth) {
-      // Nested lists open *inside* the still-open <li>, which is what makes the
-      // outline an outline rather than three flat lists in a row.
-      for (let k = depth; k < entry.level; k += 1) lines.push('<ol>');
-    } else {
-      lines.push('</li>');
-      for (let k = depth; k > entry.level; k -= 1) lines.push('</ol></li>');
+/** `June 19 – June 28, 2024`; one day is `June 19, 2024`; across years, both years. */
+export function formatDateRange(date: { readonly start: string; readonly end: string }): string {
+  const { start, end } = date;
+  if (start === end) return longDay(start, true);
+  if (start.slice(0, 4) === end.slice(0, 4)) {
+    return `${longDay(start, false)} – ${longDay(end, false)}, ${end.slice(0, 4)}`;
+  }
+  return `${longDay(start, true)} – ${longDay(end, true)}`;
+}
+
+// ------------------------------------------------------------------ render ---
+
+export interface Rendered {
+  readonly html: string;
+  /** Remote image URLs on the page, for `checkRemoteEmbeds`. */
+  readonly remotes: readonly string[];
+  /** Files in the article's media/ the page uses. */
+  readonly referenced: ReadonlySet<string>;
+  readonly stats: {
+    readonly words: number;
+    readonly headings: number;
+    readonly figures: { readonly full: number; readonly inset: number };
+    readonly fences: number;
+  };
+}
+
+/** One article to one page. Synchronous and deterministic; checks nothing remote. */
+export function renderArticle(article: Article): Rendered {
+  const { meta, slug } = article;
+  figureCounts = { full: 0, inset: 0 };
+  fenceCount = 0;
+  usedIds = new Set<string>();
+
+  const ctx: FigureContext = { article, remotes: [], referenced: new Set(), credits: new Map() };
+  const tokens = md.parse(unwrapAsides(article.body), {});
+  const toc: TocEntry[] = [];
+  const out: Token[] = [];
+  let ledeDone = false;
+  let seenPart = false;
+
+  for (let i = 0; i < tokens.length; i += 1) {
+    const token = tokens[i];
+    if (!token) continue;
+
+    // --- headings: ids, the part treatment, and the table of contents ---
+    if (token.type === 'heading_open') {
+      const inline = tokens[i + 1];
+      const explicit = takeExplicitId(inline);
+      const text = inlineText(inline);
+
+      if (token.tag === 'h1') {
+        const part = readPartHeading(text);
+        const id = uniqueId(explicit ?? slugify(part.label));
+        toc.push({ level: 1, id, label: part.label, ...(part.when ? { when: part.when } : {}) });
+
+        token.type = 'html_block';
+        token.tag = '';
+        token.nesting = 0;
+        // The empty span is where drawn-rules.js draws the divider. It ships empty
+        // and stays empty without JavaScript, which is why the heading carries a
+        // plain hairline border underneath it either way — see page.css. It is
+        // aria-hidden so a decoration cannot get into the heading's name.
+        token.content =
+          `<h1 id="${id}">` +
+          `<span class="day-rule" aria-hidden="true"></span>` +
+          `<span class="day-index">${escapeHtml(part.label)}</span>` +
+          (part.when ? `<span class="day-date">${escapeHtml(part.when)}</span>` : '') +
+          `</h1>\n`;
+        out.push(token);
+        seenPart = true;
+        i += 2;
+        continue;
+      }
+
+      // A heading that arrives before the first part — the devlog's "Before You
+      // Read" is an h3 — has no parent to nest under. In the outline it is a
+      // section in its own right; filing it three levels deep under nothing
+      // would be a lie about the shape of the piece.
+      const level = !seenPart ? 1 : token.tag === 'h2' ? 2 : 3;
+      const id = uniqueId(explicit ?? slugify(text));
+      token.attrSet('id', id);
+      toc.push({ level, id, label: text });
+      out.push(token);
+      continue;
     }
 
-    const when = entry.when ? ` <span class="toc-when">${escapeHtml(entry.when)}</span>` : '';
-    lines.push(
-      `<li class="lvl-${entry.level}"><a href="#${entry.id}">${escapeHtml(entry.label)}${when}</a>`,
-    );
-    depth = entry.level;
+    // --- figures: an image that is a paragraph of its own ---
+    if (token.type === 'paragraph_open') {
+      const sole = soleImage(tokens[i + 1], slug);
+      if (sole) {
+        token.type = 'html_block';
+        token.tag = '';
+        token.nesting = 0;
+        token.content = `${figureMarkup(ctx, sole.image, sole.attrs)}\n`;
+        out.push(token);
+        i += 2;
+        continue;
+      }
+
+      // The first paragraph of the article is the standfirst.
+      if (!ledeDone) {
+        token.attrJoin('class', 'lede');
+        ledeDone = true;
+      }
+    }
+
+    // An image inside running text would be emitted as a bare <img> with an
+    // unresolved path. Figures are blocks here; say so rather than ship that.
+    if (token.type === 'inline' && token.children?.some((child) => child.type === 'image')) {
+      throw new Error(`${slug}: an image has to be a paragraph of its own: "${token.content.slice(0, 80)}"`);
+    }
+
+    out.push(token);
   }
 
-  for (let k = depth; k > 0; k -= 1) lines.push('</li></ol>');
-  return lines.join('\n');
-})();
+  const bodyHtml = md.renderer.render(out, md.options, {});
 
-const description =
-  'A day-by-day account of building Rise&Shine, a Godot puzzle-platformer, for ' +
-  'Learn You A Game Jam 2024 — shaders, entity components, tilemaps and the ' +
-  'things that broke. Winner of the Most Educational Devlog Prize.';
+  // ----------------------------------------------------------------- masthead ---
 
-const html = `<!doctype html>
+  const wordCount = countWords(tokens);
+  const readingMinutes = Math.max(1, Math.round(wordCount / WORDS_PER_MINUTE));
+  const dateRange = formatDateRange(meta.date);
+  const canonical = meta.canonical ?? pageUrl(slug);
+  const media = (ref: string) => {
+    const file = mediaRef(article, ref);
+    ctx.referenced.add(file);
+    return mediaUrl(slug, file);
+  };
+  const image = meta.image ? `${SITE_ORIGIN}${media(meta.image)}` : undefined;
+  const banner = meta.banner
+    ? {
+        art: media(meta.banner.art),
+        plateLight: media(meta.banner.plateLight),
+        plateDark: media(meta.banner.plateDark),
+        options: bannerOptions(meta.banner.settings),
+      }
+    : undefined;
+
+  const tocHtml = (() => {
+    const lines: string[] = [];
+    let depth = 0;
+
+    for (const entry of toc) {
+      if (depth === 0) {
+        lines.push('<ol>');
+      } else if (entry.level > depth) {
+        // Nested lists open *inside* the still-open <li>, which is what makes the
+        // outline an outline rather than three flat lists in a row.
+        for (let k = depth; k < entry.level; k += 1) lines.push('<ol>');
+      } else {
+        lines.push('</li>');
+        for (let k = depth; k > entry.level; k -= 1) lines.push('</ol></li>');
+      }
+
+      const when = entry.when ? ` <span class="toc-when">${escapeHtml(entry.when)}</span>` : '';
+      lines.push(
+        `<li class="lvl-${entry.level}"><a href="#${entry.id}">${escapeHtml(entry.label)}${when}</a>`,
+      );
+      depth = entry.level;
+    }
+
+    for (let k = depth; k > 0; k -= 1) lines.push('</li></ol>');
+    return lines.join('\n');
+  })();
+
+  const award = meta.award;
+  const awardHtml = award
+    ? escapeHtml(award.text) +
+      (award.event
+        ? `<span class="sep">·</span>${award.url ? `<a href="${escapeHtml(award.url)}">${escapeHtml(award.event)}</a>` : escapeHtml(award.event)}`
+        : '')
+    : '';
+  const awardRow = award
+    ? `
+            <dt>Award</dt>
+            <dd>${award.url && !award.event ? `<a href="${escapeHtml(award.url)}">${awardHtml}</a>` : awardHtml}</dd>`
+    : '';
+  const brief = `${award ? `${escapeHtml(award.text)}<span class="sep">·</span>` : ''}${readingMinutes} min`;
+
+  const elsewhere = [{ label: 'imtani.dev', url: '/' }, ...meta.elsewhere]
+    .map(
+      (link) =>
+        `            <li><a href="${escapeHtml(link.url)}" target="_blank" rel="noopener">${escapeHtml(link.label)}<span class="vh"> (opens in a new tab)</span></a></li>`,
+    )
+    .join('\n');
+
+  const colophon = [{ label: 'imtani.dev', url: '/' }, ...meta.colophon]
+    .map((link) => `<a href="${escapeHtml(link.url)}">${escapeHtml(link.label)}</a>`)
+    .join(' <span class="sep">·</span> ');
+
+  const credits = [...ctx.credits.values()]
+    .map((credit) => `\n        <!--${credit.note}-->\n        <p>${credit.html}</p>`)
+    .join('');
+
+  const source = relative(SITE_ROOT, join(article.dir, 'article.md')).replace(/\\/g, '/');
+
+  const structured: Record<string, unknown> = {
+    '@context': 'https://schema.org',
+    '@type': 'BlogPosting',
+    headline: meta.title,
+    description: meta.description,
+    url: canonical,
+    mainEntityOfPage: canonical,
+    datePublished: meta.published,
+    dateModified: meta.updated,
+    ...(image ? { image } : {}),
+    // Both are the Person node on the home page, by @id; the name and url are
+    // repeated so a reader of this page's graph alone still knows who and where.
+    author: { '@type': 'Person', '@id': `${SITE_ORIGIN}/#person`, name: meta.author, url: `${SITE_ORIGIN}/` },
+    publisher: { '@id': `${SITE_ORIGIN}/#person`, name: SITE_OWNER, url: `${SITE_ORIGIN}/` },
+    inLanguage: 'en',
+    ...(meta.keywords.length ? { keywords: meta.keywords } : {}),
+    ...(meta.about
+      ? { about: { '@type': meta.about.type, name: meta.about.name, ...(meta.about.url ? { url: meta.about.url } : {}) } }
+      : {}),
+    ...(award ? { award: award.event ? `${award.text}, ${award.event}` : award.text } : {}),
+  };
+
+  const html = `<!doctype html>
 <!--
-  Generated by tools/devlog/build.ts from the Notion export. Do not edit by
-  hand: run \`npm run devlog\`, or change tools/devlog/page.css for the styling.
+  Generated by tools/writing/build.ts from ${source.startsWith('..') ? `the private repo's articles/drafts/${slug}/article.md` : source}.
+  Do not edit by hand: change the article and run \`npm run writing\`, or change
+  tools/writing/page.css for the styling.
 -->
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>${escapeHtml(docTitle)} — Tanishk Narula</title>
-    <meta name="description" content="${escapeHtml(description)}" />
-    <meta name="author" content="Tanishk Narula" />
-    <link rel="canonical" href="${CANONICAL}" />
+    <title>${escapeHtml(meta.title)} — ${escapeHtml(meta.author)}</title>
+    <meta name="description" content="${escapeHtml(meta.description)}" />
+    <meta name="author" content="${escapeHtml(meta.author)}" />
+    <link rel="canonical" href="${escapeHtml(canonical)}" />
     <!--
       The favicon is deferred until the identity exists, so there is no icon to
       point at and /favicon.ico 404s on every load. An empty data URL is the
@@ -1800,11 +1767,10 @@ const html = `<!doctype html>
     <meta name="theme-color" content="#111316" media="(prefers-color-scheme: dark)" data-theme-color="dark" />
     <meta name="theme-color" content="#faf6ee" media="(prefers-color-scheme: light)" data-theme-color="light" />
     <meta property="og:type" content="article" />
-    <meta property="og:title" content="${escapeHtml(docTitle)}" />
-    <meta property="og:description" content="${escapeHtml(description)}" />
-    <meta property="og:url" content="${CANONICAL}" />
-    <meta property="og:image" content="https://imtani.dev${PUBLIC_BASE}/rise-and-shine-cover.webp" />
-    <meta name="twitter:card" content="summary_large_image" />
+    <meta property="og:title" content="${escapeHtml(meta.title)}" />
+    <meta property="og:description" content="${escapeHtml(meta.description)}" />
+    <meta property="og:url" content="${escapeHtml(canonical)}" />
+${image ? `    <meta property="og:image" content="${escapeHtml(image)}" />\n` : ''}    <meta name="twitter:card" content="${image ? 'summary_large_image' : 'summary'}" />
     <!--
       The author is a reference to the Person node declared on the home page,
       not a second description of him. One @id across the site is what lets a
@@ -1812,27 +1778,9 @@ const html = `<!doctype html>
       instead of two pages that happen to share a name.
     -->
     <script type="application/ld+json">
-${JSON.stringify(
-  {
-    '@context': 'https://schema.org',
-    '@type': 'BlogPosting',
-    headline: docTitle,
-    description,
-    url: CANONICAL,
-    mainEntityOfPage: CANONICAL,
-    datePublished,
-    dateModified,
-    image: `https://imtani.dev${PUBLIC_BASE}/rise-and-shine-cover.webp`,
-    author: { '@type': 'Person', '@id': 'https://imtani.dev/#person', name: 'Tanishk Narula' },
-    publisher: { '@id': 'https://imtani.dev/#person' },
-    inLanguage: 'en',
-    keywords: ['Godot', 'game jam', 'devlog', 'shaders', 'game development'],
-    about: { '@type': 'VideoGame', name: 'Rise&Shine', url: GAME },
-    award: `Most Educational Devlog Prize, Learn You A Game Jam ${JAM_YEAR}`,
-  },
-  null,
-  2,
-)
+${JSON.stringify(structured, null, 2)
+  // `</script` inside a string would end the tag; JSON allows the escape.
+  .replace(/<\//g, '<\\/')
   .split('\n')
   .map((line) => `      ${line}`)
   .join('\n')}
@@ -1858,16 +1806,16 @@ ${remoteBoot.trimEnd()}
 ${css.trimEnd()}
 
 ${linkRuleCss}
-
-${bannerCss}
-
+${banner ? `\n${bannerCss(banner.plateLight, banner.plateDark)}\n` : ''}
 ${tornEdgeCss}
     </style>
   </head>
   <body>
-    <a class="skip" href="#article">Skip to the devlog</a>
+    <a class="skip" href="#article">Skip to the ${escapeHtml(meta.kind.toLowerCase())}</a>
     <div class="page">
-      <header class="masthead">
+      <header class="masthead">${
+        banner
+          ? `
         <!--
           The band. An empty div because banner.js owns everything inside it: it
           appends one canvas and sizes it to this box. With no JavaScript the
@@ -1876,7 +1824,9 @@ ${tornEdgeCss}
           no text at any point, so it is aria-hidden and out of the tab order by
           construction.
         -->
-        <div class="band" aria-hidden="true"></div>
+        <div class="band" aria-hidden="true"></div>`
+          : ''
+      }
         <!--
           The wrapper is what the rule under it can be positioned from: at the
           wide breakpoint page.css pads this block down to --head-rule so the
@@ -1884,9 +1834,8 @@ ${tornEdgeCss}
           gutter. Below that breakpoint it is an ordinary div doing nothing.
         -->
         <div class="masthead-id">
-          <h1 class="title">${escapeHtml(docTitle)}</h1>
-          <p class="tagline">${escapeHtml(tagline)}</p>
-          <p class="byline">by Tanishk Narula <span class="handle">(${escapeHtml(handle)})</span></p>
+          <h1 class="title">${escapeHtml(meta.title)}</h1>
+${meta.deck ? `          <p class="tagline">${escapeHtml(meta.deck)}</p>\n` : ''}          <p class="byline">by ${escapeHtml(meta.author)}${meta.handle ? ` <span class="handle">(${escapeHtml(meta.handle)})</span>` : ''}</p>
         </div>
         <!--
           The slip: everything the masthead states rather than says, in one
@@ -1918,13 +1867,11 @@ ${tornEdgeCss}
         -->
         <div class="slip">
           <span class="award-rule" aria-hidden="true"></span>
-          <dl class="slip-record">
-            <dt>Award</dt>
-            <dd>Most Educational Devlog Prize<span class="sep">·</span><a href="${JAM}">Learn You A Game Jam ${JAM_YEAR}</a></dd>
-            <dt>Devlog</dt>
-            <dd>${escapeHtml(dateRange)}<span class="sep">·</span>${wordCount.toLocaleString('en-US')} words<span class="sep">·</span>about ${readingMinutes} minutes</dd>
+          <dl class="slip-record">${awardRow}
+            <dt>${escapeHtml(meta.kind)}</dt>
+            <dd>${escapeHtml(dateRange)}<span class="sep">·</span>${wordCount.toLocaleString('en-US')} words<span class="sep">·</span>about ${readingMinutes} ${readingMinutes === 1 ? 'minute' : 'minutes'}</dd>
           </dl>
-          <p class="slip-brief">Most Educational Devlog Prize<span class="sep">·</span>${readingMinutes} min</p>
+          <p class="slip-brief">${brief}</p>
         </div>
       </header>
 
@@ -1934,8 +1881,7 @@ ${tornEdgeCss}
 
         Two groups because the row this replaced mixed four kinds of thing and
         said so with nothing: 'elsewhere' leaves the site, 'here' acts on this
-        page. The labels are the distinction — 'start reading' used to read as a
-        sixth outbound link and now sits under the heading that says it is not.
+        page. The labels are the distinction.
 
         Both controls ship hidden and their own script reveals them by setting
         'hidden' on the LI, because both are only true when that script is
@@ -1950,9 +1896,8 @@ ${tornEdgeCss}
         Below the gutters none of this is here. remote.js moves the two groups
         and the contents into the sheet the remote opens — the same nodes, not
         copies, so there is one of everything for a screen reader and for the
-        scripts that already drive the controls. 'start reading' carries a class
-        because the sheet leaves it out: a reader opens the menu from inside the
-        article, and the article's start is the masthead's next line anyway.
+        scripts that already drive the controls. At the wide breakpoint the rail
+        is sticky, like the contents, so the same two groups stay to hand there.
       -->
       <!--
         The remote: a floating button that opens the page's options, wherever
@@ -1982,15 +1927,12 @@ ${tornEdgeCss}
         <nav class="rail-group" aria-labelledby="rail-elsewhere">
           <h2 class="rail-h" id="rail-elsewhere">Elsewhere</h2>
           <ul>
-            <li><a href="/" target="_blank" rel="noopener">imtani.dev<span class="vh"> (opens in a new tab)</span></a></li>
-            <li><a href="${REPO}" target="_blank" rel="noopener">source code<span class="vh"> (opens in a new tab)</span></a></li>
-            <li><a href="${GAME}" target="_blank" rel="noopener">play Rise&amp;Shine<span class="vh"> (opens in a new tab)</span></a></li>
+${elsewhere}
           </ul>
         </nav>
         <div class="rail-group">
           <h2 class="rail-h" id="rail-here">Here</h2>
           <ul aria-labelledby="rail-here">
-            <li class="rail-start"><a href="#article">start reading</a></li>
             <li hidden>
               <button class="motion-button" type="button" data-motion-toggle>Pause the motion</button>
             </li>
@@ -2001,7 +1943,9 @@ ${tornEdgeCss}
         </div>
       </div>
 
-      <div class="layout">
+      <div class="layout">${
+        meta.toc
+          ? `
         <!--
           The empty span is the rail's half of the head rule, drawn by
           drawn-rules.js from the same seed and span as the masthead's so the two
@@ -2014,7 +1958,9 @@ ${tornEdgeCss}
           <h2 class="toc-h" id="contents">Contents<span class="toc-rule" aria-hidden="true"></span></h2>
 ${tocHtml}
         </nav>
-
+`
+          : ''
+      }
         <!--
           A role rather than a main element: the landmark set was banner,
           navigation and contentinfo with nothing in the middle, and at the wide
@@ -2037,18 +1983,7 @@ ${bodyHtml}
         are; the masthead's copies of them are four thousand words away.
       -->
       <footer class="colophon">
-        <p><a href="/">imtani.dev</a> <span class="sep">·</span> <a href="${REPO}">github.com/ImTani/LYAGJ2024</a></p>
-        <!--
-          The one credit the page owes: the Godot logo on the coordinate grid's
-          switch is CC BY 4.0, which asks for attribution and for changes to be
-          said. Here rather than beside the switch, which is a control and not a
-          place to read small print. Always present, though the switch is not
-          without JavaScript: the logo's markup ships in the page either way,
-          and a line that appears and disappears with a script is more
-          machinery than a credit is worth. Its wording lives in figures.ts,
-          next to the drawing it credits.
-        -->
-        <p>${CREDIT_HTML}</p>
+        <p>${colophon}</p>${credits}
       </footer>
     </div>
     <script>
@@ -2082,7 +2017,9 @@ ${handScript.trimEnd()}
 
 ${drawnRulesScript.trimEnd()}
 })();
-    </script>
+    </script>${
+      banner
+        ? `
     <!--
       The band, last: it is the only script on the page that paints something
       the reader can already see without it. The plate is behind the masthead
@@ -2093,20 +2030,88 @@ ${drawnRulesScript.trimEnd()}
 (function () {
 ${bannerScript.trimEnd()}
 
-${bannerBootScript.trimEnd().replace('__BANNER_ART__', BANNER_ART)}
+${bannerBootScript
+  .trimEnd()
+  .replace("art: '__BANNER_ART__',", `art: '${banner.art}',`)
+  .replace(/^__BANNER_OPTIONS__\n/m, banner.options ? `${banner.options}\n` : '')}
 })();
-    </script>
+    </script>`
+        : ''
+    }
   </body>
 </html>
 `;
 
-mkdirSync(dirname(outPath), { recursive: true });
-writeFileSync(outPath, html, 'utf8');
+  return {
+    html,
+    remotes: ctx.remotes,
+    referenced: ctx.referenced,
+    stats: { words: wordCount, headings: toc.length, figures: { ...figureCounts }, fences: fenceCount },
+  };
+}
 
-process.stdout.write(
-  `devlog: ${OUT_REL} — ${wordCount.toLocaleString('en-US')} words, ` +
-    `${toc.length} headings, ${Object.keys(manifest.entries).length} local media files, ` +
-    `${figureCounts.full + figureCounts.inset} mounted figures ` +
-    `(${figureCounts.full} filling the slot, ${figureCounts.inset} inset), ` +
-    `${fenceCount} highlighted code blocks\n`,
-);
+// ---------------------------------------------------------------------- cli ---
+
+/**
+ * Files in an article's media/ that the page does not use. They would still be
+ * deployed — the whole folder is served — so on a published article that is an
+ * error; on a draft, which is allowed to be untidy, a warning.
+ */
+function unreferenced(article: Article, referenced: ReadonlySet<string>): string[] {
+  const dir = join(article.dir, MEDIA_DIR);
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir).filter((name) => !name.startsWith('.') && !referenced.has(name));
+}
+
+async function main(argv: readonly string[]): Promise<void> {
+  const drafts = argv.includes('--drafts') || process.env['WRITING_DRAFTS'] === '1';
+  const onlyAt = argv.indexOf('--only');
+  const only = onlyAt === -1 ? undefined : argv[onlyAt + 1];
+
+  const { articles, warnings } = discover({ drafts });
+  for (const warning of warnings) process.stderr.write(`writing: ${warning}\n`);
+  const chosen = only ? articles.filter((a) => a.slug === only) : articles;
+  if (only && chosen.length === 0) throw new Error(`no article "${only}"${drafts ? '' : ' (drafts not included)'}`);
+
+  mkdirSync(OUT_DIR, { recursive: true });
+  // writing/ is generated and nothing else lives there, so a page for an
+  // article that has gone — or a draft from the last `npm run dev` — is removed
+  // rather than left for Vite to find. Not on `--only`, which is one page.
+  if (!only) {
+    const keep = new Set(articles.map((a) => `${a.slug}.html`));
+    for (const name of readdirSync(OUT_DIR)) {
+      if (name.endsWith('.html') && !keep.has(name)) rmSync(join(OUT_DIR, name));
+    }
+  }
+
+  for (const article of chosen) {
+    const rendered = renderArticle(article);
+    await checkRemoteEmbeds(rendered.remotes);
+
+    const stray = unreferenced(article, rendered.referenced);
+    if (stray.length) {
+      const message =
+        `${article.slug}: media/ holds ${stray.length} file(s) the article does not use, ` +
+        `and they would be deployed: ${stray.join(', ')}`;
+      if (article.source === 'published') throw new Error(message);
+      process.stderr.write(`writing: ${message}\n`);
+    }
+
+    writeFileSync(join(OUT_DIR, `${article.slug}.html`), rendered.html, 'utf8');
+    const { words, headings, figures, fences } = rendered.stats;
+    process.stdout.write(
+      `writing: ${article.source === 'drafts' ? 'DRAFT ' : ''}writing/${article.slug}.html — ` +
+        `${words.toLocaleString('en-US')} words, ${headings} headings, ` +
+        `${rendered.referenced.size} local media files, ` +
+        `${figures.full + figures.inset} mounted figures ` +
+        `(${figures.full} filling the slot, ${figures.inset} inset), ` +
+        `${fences} code blocks\n`,
+    );
+  }
+}
+
+// `import.meta.url === 'file://' + argv[1]` is one slash out on Windows, so
+// the comparison is made on real paths rather than on URL spelling.
+if (process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url))) {
+  await main(process.argv.slice(2));
+}

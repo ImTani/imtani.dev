@@ -84,6 +84,30 @@ export interface BannerScratch {
   palRef?: Rgb[] | null;
 }
 
+/** `createBannerScreen`'s defaults; banner-plate.ts merges an article's settings over these. */
+export declare const DEFAULTS: {
+  grain: number;
+  levels: number;
+  ramp: number;
+  rampWidth: number;
+  cell: number;
+  artScale: number | 'cover';
+  anchorX: number;
+  focus: number;
+  travel: number | null;
+  direction: number;
+  rampSpace: 'band' | 'art';
+  feather: number;
+  follow: number;
+  wiggle: number;
+  wiggleSign: number;
+  pivot: null;
+  fps: number | null;
+  progress: null;
+  motion: boolean | null;
+  tokens: string[];
+};
+
 export declare const BAYER8: number[];
 /** The six ramp custom properties, in role order paper -> ink. */
 export declare const BANNER_TOKENS: string[];

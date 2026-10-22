@@ -1,4 +1,4 @@
-/* Rise&Shine devlog — inlined into the page by tools/devlog/build.ts.
+/* Rise&Shine devlog — inlined into the page by tools/writing/build.ts.
  *
  * The copy button on a code block.
  *
