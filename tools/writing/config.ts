@@ -2,13 +2,16 @@
  * Where the writing lives, in one place.
  *
  * Every root the pipeline reads or writes is decided here and nowhere else:
- * the build, the Vite plugin, the media and banner tools and the editor all
+ * the build, the Vite plugin, the media and banner tools and the block editor all
  * import these. The format they read is documented in articles/README.md.
  *
  *   PUBLISHED_DIR  articles/<slug>/ in this (public) repository. Every
  *                  folder here with an article.md is built by CI and deployed.
  *                  Sources only: the generated pages are in writing/, and the
  *                  two are kept apart on purpose.
+ *                  Deliberately not overridable here: the block editor takes
+ *                  `WRITING_PUBLISHED_DIR` for its own tests, and the build
+ *                  never reads it.
  *   DRAFTS_DIR     articles/drafts/<slug>/ in the PRIVATE repository this one
  *                  sits inside (potpolio/articles/drafts/), same layout. Read only when drafts are asked for —
  *                  `npm run dev` and `npm run writing:drafts` — and only if the

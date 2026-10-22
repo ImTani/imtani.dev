@@ -93,11 +93,12 @@ export class ArticleError extends Error {
   override name = 'ArticleError';
 }
 
-const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+/** A folder name that can be a URL: lower-case letters, digits and single hyphens. */
+export const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const ISO_DAY = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 /** Every key the front matter may carry. Anything else is a typo, and fails. */
-const KEYS = new Set([
+export const KEYS = new Set([
   'title', 'deck', 'author', 'handle', 'kind', 'date', 'published', 'updated',
   'description', 'image', 'keywords', 'about', 'award', 'elsewhere', 'colophon',
   'canonical', 'toc', 'draft', 'banner',
@@ -216,8 +217,11 @@ function bannerValue(where: string, key: string, raw: string): BannerValue {
   return n;
 }
 
+/** Every key a `banner:` block may hold: the three files, then the options. */
+export const BANNER_KEYS: readonly string[] = [...BANNER_FILES, ...BANNER_NUMBERS, ...BANNER_NULLABLE, 'rampSpace', 'artScale'];
+
 function readBanner(where: string, dir: string, slug: string, value: FmValue | undefined): Banner | undefined {
-  const keys = [...BANNER_FILES, ...BANNER_NUMBERS, ...BANNER_NULLABLE, 'rampSpace', 'artScale'];
+  const keys = BANNER_KEYS;
   const m = map(where, 'banner', value, keys);
   if (!m) return undefined;
   const file = (k: string) => {

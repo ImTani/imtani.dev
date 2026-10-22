@@ -30,7 +30,8 @@ src/generated/
 # every build, in CI as everywhere else. Nothing else lives in writing/.
 /writing/
 
-# The devlog editor's timestamped backups, written beside the article it edits.
+# The block editor's timestamped backups (npm run write), written into
+# .edit-backups/ beside each article.md it saves — published ones live here.
 .edit-backups/
 
 # Drafts live in the private parent repo, at potpolio/articles/drafts/. One

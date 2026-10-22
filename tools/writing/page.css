@@ -2519,14 +2519,14 @@ pre code {
  * the shape, but maybe a border following the same shape, but slightly
  * desaturated, like a torn piece of paper is."*
  *
- * Which is the real thing, and the real thing has a reason. A sheet is coated on
- * its face and raw pulp inside, so a tear exposes the core — lighter, because it
- * was never printed on, and markedly less saturated, because it is fibre rather
- * than surface. `--fibre` is `--slip` with four fifths of its chroma taken out
- * and its lightness lifted a little, derived in OKLab by build.ts rather than
- * picked beside it; the band is 2.5px and it follows the tear exactly, because
- * both are read off the same array of numbers. See the torn-edge block at the
- * bottom of this page's <style>.
+ * The first version followed the real thing — a pale, desaturated pulp core —
+ * and on the dark page that came out a cool grey line around a warm note: *"It
+ * doesn't feel like it belongs."* Since 22 October 2026 `--fibre` is `--slip`
+ * taken 22% of the way toward `--accent` in OKLab ("ink-touched", chosen at
+ * reference/note-edge.html), derived by build.ts rather than picked beside it;
+ * the band is 3.5px and it follows the tear exactly, because both are read off
+ * the same array of numbers. See the torn-edge block at the bottom of this
+ * page's <style>.
  *
  * It sits INSIDE the silhouette, hugging the tear, which is where the pale core
  * of a real torn sheet is — there is nothing outside a torn edge. It also means

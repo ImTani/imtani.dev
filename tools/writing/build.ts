@@ -554,29 +554,36 @@ const tornNear = (edge: TornEdge) => edge === 'top' || edge === 'left';
  * and "seeded identically" is a claim that survives exactly until somebody
  * changes the order of two `wander` calls; sharing the array is not a claim.
  */
-const FIBRE_PX = 2.5;
+const FIBRE_PX = 3.5;
 
 /**
- * The band's colour, derived from `--slip` rather than chosen beside it.
+ * The band's colour: `--slip` taken 22% of the way toward `--accent`, in OKLab.
  *
- * Two moves, in OKLab, one for each half of what a torn edge actually is:
- * take four fifths of the chroma out, because the core is unprinted pulp and
- * the face is not, and lift the lightness a little, because it has not aged in
- * the light the way the surface has. The hue does not move at all — it is the
- * same stock.
+ * Chosen by Tani on 22 October 2026 at `reference/note-edge.html`, at 3.5px, on
+ * both themes — "ink-touched", as if the tear had caught the page's ink.
  *
- * The two constants are calibrated against something already on the page rather
- * than dialled in: at these values the band sits 1.18:1 from the light ground
- * and 1.25:1 from the dark one, which is where `--rule` sits (1.24:1 and
- * 1.29:1). A torn edge is exactly as visible as a ruled line, and no more —
- * which is the right answer for a page whose whole register is hairlines.
+ * It replaced the pulp-core derivation above it in this file's history (four
+ * fifths of the chroma out, lightness lifted a touch). That was right for the
+ * light page and wrong for the dark one: on the warm brown slip it came out a
+ * near-neutral grey, #2c2a28, at 1.09:1 against the note — a cool line around a
+ * warm object. *"It doesn't feel like it belongs."* Mixing toward the accent
+ * keeps the band in the page's own warm family on both grounds and lets it
+ * register as an outline (1.38:1 dark, 1.37:1 light against the slip) without
+ * leaving the hairline register; the extra width is what makes it read as an
+ * edge rather than a highlight.
  */
-const FIBRE_CHROMA = 0.22;
-const FIBRE_LIGHTNESS = 0.025;
+const FIBRE_INK = 0.22;
 
-function fibreOf(slip: string): string {
-  const [L, a, b] = srgbToOklab(hexToRgb(slip));
-  return rgbToHex(oklabToSrgb([L + FIBRE_LIGHTNESS, a * FIBRE_CHROMA, b * FIBRE_CHROMA]));
+function fibreOf(slip: string, accent: string): string {
+  const s = srgbToOklab(hexToRgb(slip));
+  const a = srgbToOklab(hexToRgb(accent));
+  return rgbToHex(
+    oklabToSrgb([
+      s[0] + (a[0] - s[0]) * FIBRE_INK,
+      s[1] + (a[1] - s[1]) * FIBRE_INK,
+      s[2] + (a[2] - s[2]) * FIBRE_INK,
+    ]),
+  );
 }
 
 /**
@@ -702,7 +709,8 @@ function edgeUri(d: string, width: number, height: number, paint: string, pin?: 
 
 const tornEdgeCss = (() => {
   const slip = paletteToken('slip');
-  const fibre = { light: fibreOf(slip.light), dark: fibreOf(slip.dark) };
+  const accent = paletteToken('accent');
+  const fibre = { light: fibreOf(slip.light, accent.light), dark: fibreOf(slip.dark, accent.dark) };
 
   const band = TORN_PX + FIBRE_PX;
 
@@ -1284,9 +1292,16 @@ function drawnFigureMarkup(fig: DrawnFigure, caption: string): string {
   );
 }
 
+/**
+ * All the body needs to know about its article: where its media is and what
+ * its URL is. The block editor renders blocks of an article whose front matter
+ * may not be valid yet, so the body never reads the front matter.
+ */
+type ArticleRef = Pick<Article, 'slug' | 'dir'>;
+
 /** What one article's figures needed, gathered while it renders. */
 interface FigureContext {
-  readonly article: Article;
+  readonly article: ArticleRef;
   /** Remote URLs, checked after rendering — see `checkRemoteEmbeds`. */
   readonly remotes: string[];
   /** Files in media/ the page uses; anything else there is an error. */
@@ -1545,18 +1560,38 @@ export interface Rendered {
   };
 }
 
-/** One article to one page. Synchronous and deterministic; checks nothing remote. */
-export function renderArticle(article: Article): Rendered {
-  const { meta, slug } = article;
+/** What `renderBody` produced, and what it found while producing it. */
+interface RenderedBody {
+  readonly html: string;
+  /** The parsed article, for the word count. */
+  readonly tokens: readonly Token[];
+  readonly toc: readonly TocEntry[];
+  readonly ctx: FigureContext;
+  /** Whether a paragraph here could be the standfirst, used or not. */
+  readonly ledeCandidate: boolean;
+  /** Whether a paragraph here was given the standfirst's class. */
+  readonly ledeUsed: boolean;
+}
+
+/**
+ * The Markdown of an article to the HTML inside its `<article class="prose">`:
+ * the headings and their contents entries, the figures, the standfirst.
+ * `lede: false` withholds the standfirst's class, for a fragment that is not
+ * where the body starts — see `renderFragment`.
+ */
+function renderBody(article: ArticleRef, body: string, options: { readonly lede?: boolean } = {}): RenderedBody {
+  const { slug } = article;
   figureCounts = { full: 0, inset: 0 };
   fenceCount = 0;
   usedIds = new Set<string>();
 
   const ctx: FigureContext = { article, remotes: [], referenced: new Set(), credits: new Map() };
-  const tokens = md.parse(unwrapAsides(article.body), {});
+  const tokens = md.parse(unwrapAsides(body), {});
   const toc: TocEntry[] = [];
   const out: Token[] = [];
-  let ledeDone = false;
+  let ledeDone = options.lede === false;
+  let ledeCandidate = false;
+  let ledeUsed = false;
   let seenPart = false;
 
   for (let i = 0; i < tokens.length; i += 1) {
@@ -1619,9 +1654,11 @@ export function renderArticle(article: Article): Rendered {
       }
 
       // The first paragraph of the article is the standfirst.
+      ledeCandidate = true;
       if (!ledeDone) {
         token.attrJoin('class', 'lede');
         ledeDone = true;
+        ledeUsed = true;
       }
     }
 
@@ -1634,7 +1671,55 @@ export function renderArticle(article: Article): Rendered {
     out.push(token);
   }
 
-  const bodyHtml = md.renderer.render(out, md.options, {});
+  return { html: md.renderer.render(out, md.options, {}), tokens, toc, ctx, ledeCandidate, ledeUsed };
+}
+
+/** One rendered piece of an article's body, for the block editor. */
+export interface RenderedFragment {
+  /** Exactly what the page would have at this point inside `.prose`. */
+  readonly html: string;
+  /** Files in the article's media/ this piece uses. */
+  readonly referenced: readonly string[];
+  readonly remotes: readonly string[];
+  readonly ledeCandidate: boolean;
+  readonly ledeUsed: boolean;
+}
+
+/**
+ * A piece of an article's body, rendered by the same code as the page, for the
+ * block editor (tools/writing/write/). `lede` says whether the standfirst
+ * falls in this piece. Throws whatever the build would throw for it.
+ */
+export function renderFragment(article: ArticleRef, markdown: string, options: { readonly lede: boolean }): RenderedFragment {
+  const body = renderBody(article, markdown, { lede: options.lede });
+  return {
+    html: body.html,
+    referenced: [...body.ctx.referenced],
+    remotes: body.ctx.remotes,
+    ledeCandidate: body.ledeCandidate,
+    ledeUsed: body.ledeUsed,
+  };
+}
+
+/**
+ * Everything inside the page's `<style>`: page.css, the link underline, the
+ * band's plates when there is a band, and the torn edges. Exported for the
+ * block editor, which draws its blocks with exactly this.
+ */
+export function pageStyles(plates?: { readonly light: string; readonly dark: string }): string {
+  const band = plates ? `\n${bannerCss(plates.light, plates.dark)}\n` : '';
+  return `${css.trimEnd()}\n\n${linkRuleCss}\n${band}\n${tornEdgeCss}`;
+}
+
+/** The drawn figures an article can ask for by name, for the editor's picker. */
+export function drawnFigures(): ReadonlyArray<{ readonly name: string; readonly label: string; readonly width: number }> {
+  return Object.values(DRAWN).map((fig) => ({ name: fig.name, label: fig.label, width: fig.width }));
+}
+
+/** One article to one page. Synchronous and deterministic; checks nothing remote. */
+export function renderArticle(article: Article): Rendered {
+  const { meta, slug } = article;
+  const { html: bodyHtml, tokens, toc, ctx } = renderBody(article, article.body);
 
   // ----------------------------------------------------------------- masthead ---
 
@@ -1803,11 +1888,7 @@ ${themeBoot.trimEnd()}
 ${remoteBoot.trimEnd()}
     </script>
     <style>
-${css.trimEnd()}
-
-${linkRuleCss}
-${banner ? `\n${bannerCss(banner.plateLight, banner.plateDark)}\n` : ''}
-${tornEdgeCss}
+${pageStyles(banner ? { light: banner.plateLight, dark: banner.plateDark } : undefined)}
     </style>
   </head>
   <body>

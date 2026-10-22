@@ -32,7 +32,8 @@ site/writing/<slug>.html           generated pages — never edit, never commit
   published folder that says it is a draft is skipped by the build (with a
   warning, so it cannot stop the six-hourly deploy).
 - The roots are set in one place, `tools/writing/config.ts`.
-  `WRITING_DRAFTS_DIR` overrides the drafts root.
+  `WRITING_DRAFTS_DIR` overrides the drafts root; the editor alone also takes
+  `WRITING_PUBLISHED_DIR`, for testing against a copy.
 
 Every file in a published article's `media/` must be used by the article — a
 stray file would be deployed, so the build fails on one. (Drafts only warn.)
@@ -225,6 +226,36 @@ poster) into the article's `media/`. The devlog's originals — the Notion
 export — stay in the private repo as the archive, with their map;
 `npm run devlog:media` is that command for the devlog.
 
+## Editing
+
+`npm run write` opens the block editor at `http://127.0.0.1:4300` — a local
+tool (`tools/writing/write/`), bound to this machine only, never built or
+deployed. It lists every published article and draft, makes new drafts (a
+`drafts/<slug>/` with this format's required fields filled in, the optional
+ones as comments, and an empty `media/`), and opens one as:
+
+- **The page.** The masthead and every top-level block, drawn by `build.ts`
+  with the page's own stylesheet. Click a block to edit its Markdown; Escape or
+  clicking away draws it again. Blocks are inserted, duplicated, deleted and
+  moved (drag handle, or Alt+↑/↓); Ctrl+Z undoes. Images come from `media/`, or
+  are dropped in and copied there under a slugified name — WebP, PNG and JPEG
+  only; GIFs and video go through `npm run writing:media`.
+- **The front matter** as a form, one control per field above. Comments are
+  kept, unknown keys are shown and left alone, and a block that will not parse
+  can be edited as text.
+- **Problems:** this file's checks, run on what is on screen.
+
+**Save** writes `article.md` and nothing else: temp file and rename, with the
+old file copied into `.edit-backups/` beside it first (ignored by git in both
+repositories). A block that was not edited or moved is written back byte for
+byte, with the blank lines around it, and the file keeps its line endings and
+BOM; opening an article and saving it unchanged writes nothing. A published
+article that would fail the build can still be saved, after a warning that
+the deploy would fail. **Preview** opens the whole page, unsaved changes
+included, as `renderArticle` builds it. **Publish** (drafts only) moves the
+folder into `site/articles/` after showing what will move; it refuses if the
+slug is taken or the article would fail as published, and it does not commit.
+
 ## Commands
 
 | | |
@@ -233,7 +264,8 @@ export — stay in the private repo as the archive, with their map;
 | `npm run writing:drafts` | The same, plus drafts. `npm run dev` runs it first, then rebuilds on any change to an article, its media or `tools/writing/`. |
 | `npm run writing:media -- …` | Transcode originals into an article's `media/`. Needs ffmpeg. |
 | `npm run writing:banner -- <slug>` | Bake an article's banner plates. |
-| `npm run devlog`, `devlog:media`, `devlog:edit` | The old names: an alias, the devlog's media, and the devlog's prose editor. |
+| `npm run write` | The block editor; see Editing. |
+| `npm run devlog`, `devlog:media`, `devlog:edit` | The old names: an alias, the devlog's media, and the editor (now `npm run write`). |
 
 The sitemap and `_headers` are generated at build time from the published list;
 drafts never appear in either.
