@@ -45,9 +45,12 @@ The same person, in the places he publishes:
 - <https://www.linkedin.com/in/tanishk-narula>
 - <https://github.com/ImTani>
 - <https://infinitani.itch.io>
-- <https://www.twitch.tv/infinitani>
+- <https://www.twitch.tv/infinitani_>
 - <https://x.com/infinitani>
 - <https://x.com/TaniOnTheBlock>
+- <https://medium.com/@Tanishk-Narula>
+- <https://devfolio.co/@imTani>
+- <https://www.npmjs.com/~imtani>
 
 ## On how this was made
 
